@@ -1,0 +1,282 @@
+{
+  "name": "epic-lens",
+  "displayName": "Epic Lens",
+  "description": "Jira Epic status visualizer — scan local markdown files, fetch live ticket status, and track progress across repos",
+  "version": "0.1.0",
+  "publisher": "andrevops-com",
+  "license": "MIT",
+  "icon": "resources/icons/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Andrevops/epic-lens"
+  },
+  "keywords": [
+    "jira",
+    "epic",
+    "status",
+    "kanban",
+    "tracker"
+  ],
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "galleryBanner": {
+    "color": "#1a1a2e",
+    "theme": "dark"
+  },
+  "activationEvents": [
+    "onView:epicLens.epics",
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "epicLens",
+          "title": "Epic Lens",
+          "icon": "resources/icons/epic-lens.svg"
+        }
+      ]
+    },
+    "views": {
+      "epicLens": [
+        {
+          "id": "epicLens.epics",
+          "name": "Epics"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "epicLens.epics",
+        "contents": "No epics found.\n[Scan for Epics](command:epicLens.scan)",
+        "when": "!epicLens.hasEpics"
+      }
+    ],
+    "commands": [
+      {
+        "command": "epicLens.scan",
+        "title": "Scan for Epics",
+        "category": "Epic Lens",
+        "icon": "$(search)"
+      },
+      {
+        "command": "epicLens.refresh",
+        "title": "Refresh Status",
+        "category": "Epic Lens",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "epicLens.filterByStatus",
+        "title": "Filter by Status",
+        "category": "Epic Lens",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "epicLens.filterByType",
+        "title": "Filter by Type",
+        "category": "Epic Lens",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "epicLens.toggleHideDone",
+        "title": "Toggle Hide Done",
+        "category": "Epic Lens",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "epicLens.openFile",
+        "title": "Open Markdown File",
+        "category": "Epic Lens",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "epicLens.openInJira",
+        "title": "Open in Jira",
+        "category": "Epic Lens",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "epicLens.copyKey",
+        "title": "Copy Issue Key",
+        "category": "Epic Lens",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "epicLens.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Epic Lens",
+        "icon": "$(dashboard)"
+      },
+      {
+        "command": "epicLens.clearFilters",
+        "title": "Clear All Filters",
+        "category": "Epic Lens",
+        "icon": "$(clear-all)"
+      },
+      {
+        "command": "epicLens.configureCredentials",
+        "title": "Configure Jira Credentials",
+        "category": "Epic Lens",
+        "icon": "$(key)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "epicLens.scan",
+        "key": "alt+e s",
+        "mac": "alt+e s"
+      },
+      {
+        "command": "epicLens.refresh",
+        "key": "alt+e r",
+        "mac": "alt+e r"
+      },
+      {
+        "command": "epicLens.openDashboard",
+        "key": "alt+e d",
+        "mac": "alt+e d"
+      },
+      {
+        "command": "epicLens.filterByStatus",
+        "key": "alt+e f",
+        "mac": "alt+e f"
+      },
+      {
+        "command": "epicLens.filterByType",
+        "key": "alt+e t",
+        "mac": "alt+e t"
+      },
+      {
+        "command": "epicLens.toggleHideDone",
+        "key": "alt+e h",
+        "mac": "alt+e h"
+      },
+      {
+        "command": "epicLens.clearFilters",
+        "key": "alt+e c",
+        "mac": "alt+e c"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "epicLens.scan",
+          "when": "view == epicLens.epics",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.refresh",
+          "when": "view == epicLens.epics",
+          "group": "navigation@2"
+        },
+        {
+          "command": "epicLens.toggleHideDone",
+          "when": "view == epicLens.epics",
+          "group": "navigation@3"
+        },
+        {
+          "command": "epicLens.openDashboard",
+          "when": "view == epicLens.epics",
+          "group": "navigation@4"
+        },
+        {
+          "command": "epicLens.filterByStatus",
+          "when": "view == epicLens.epics",
+          "group": "filter@1"
+        },
+        {
+          "command": "epicLens.filterByType",
+          "when": "view == epicLens.epics",
+          "group": "filter@2"
+        },
+        {
+          "command": "epicLens.clearFilters",
+          "when": "view == epicLens.epics && epicLens.hasFilters",
+          "group": "filter@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "epicLens.openFile",
+          "when": "view == epicLens.epics && viewItem =~ /issue|epic/",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.openInJira",
+          "when": "view == epicLens.epics && viewItem =~ /issue|epic/",
+          "group": "navigation@2"
+        },
+        {
+          "command": "epicLens.copyKey",
+          "when": "view == epicLens.epics && viewItem =~ /issue|epic/",
+          "group": "util@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Epic Lens",
+      "properties": {
+        "epicLens.jiraBaseUrl": {
+          "type": "string",
+          "default": "",
+          "description": "Jira Cloud instance URL (e.g. https://yourorg.atlassian.net)"
+        },
+        "epicLens.jiraEmail": {
+          "type": "string",
+          "default": "",
+          "description": "Jira account email for API authentication"
+        },
+        "epicLens.rootPath": {
+          "type": "string",
+          "default": "",
+          "description": "Root directory to scan for epics. Only epics under this path are shown. Leave empty to show all."
+        },
+        "epicLens.scanPaths": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Additional directories to scan for epic files"
+        },
+        "epicLens.hideDoneIssues": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide completed/done issues from the tree"
+        },
+        "epicLens.scanOnStartup": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan for epics on extension activation"
+        },
+        "epicLens.showRepoGrouping": {
+          "type": "boolean",
+          "default": true,
+          "description": "Group epics by repository"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build:webview": "cd webview-ui && npm run build",
+    "compile": "node esbuild.mjs",
+    "build": "npm run build:webview && node esbuild.mjs --production",
+    "watch": "node esbuild.mjs --watch",
+    "package": "npm run build && npx @vscode/vsce package --no-dependencies",
+    "release": "node scripts/release.mjs",
+    "release:patch": "node scripts/release.mjs patch",
+    "release:minor": "node scripts/release.mjs minor",
+    "release:major": "node scripts/release.mjs major"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "^1.95.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0"
+  }
+}

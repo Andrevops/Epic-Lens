@@ -1,0 +1,90 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install extension dependencies
+        run: npm ci
+
+      - name: Install webview dependencies
+        run: npm ci --prefix webview-ui
+
+      - name: Build extension
+        run: npm run build
+
+      - name: Package .vsix
+        run: npx @vscode/vsce package --no-dependencies
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          # Find the previous tag
+          CURRENT_TAG="${GITHUB_REF#refs/tags/}"
+          PREV_TAG=$(git tag --sort=-v:refname | grep -v "^${CURRENT_TAG}$" | head -1)
+
+          if [ -n "$PREV_TAG" ]; then
+            RANGE="${PREV_TAG}..${CURRENT_TAG}"
+          else
+            RANGE="${CURRENT_TAG}"
+          fi
+
+          # Build changelog grouped by type
+          {
+            echo "## What's Changed"
+            echo ""
+
+            FEATS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -E "^feat" | sed 's/^feat[^:]*: //' || true)
+            FIXES=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -E "^fix" | sed 's/^fix[^:]*: //' || true)
+            OTHERS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -vE "^(feat|fix|chore\(release\))" | head -10 || true)
+
+            if [ -n "$FEATS" ]; then
+              echo "### Features"
+              echo "$FEATS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+
+            if [ -n "$FIXES" ]; then
+              echo "### Bug Fixes"
+              echo "$FIXES" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+
+            if [ -n "$OTHERS" ]; then
+              echo "### Other"
+              echo "$OTHERS" | while IFS= read -r line; do echo "- $line"; done
+              echo ""
+            fi
+
+            echo "---"
+            echo "**Full Changelog**: [\`${PREV_TAG:-initial}..${CURRENT_TAG}\`](https://github.com/${{ github.repository }}/compare/${PREV_TAG:-initial}...${CURRENT_TAG})"
+          } > RELEASE_NOTES.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.vsix"
+          body_path: RELEASE_NOTES.md
+
+      # Uncomment when VSCE_PAT is available to auto-publish to marketplace
+      # - name: Publish to VS Code Marketplace
+      #   run: npx @vscode/vsce publish --no-dependencies
+      #   env:
+      #     VSCE_PAT: ${{ secrets.VSCE_PAT }}
