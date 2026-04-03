@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.5.2
+
+### Bug Fixes
+- replace spinning loader with static play-circle icon for in-progress issues
+
 ## 0.5.1
 
 ### Bug Fixes
