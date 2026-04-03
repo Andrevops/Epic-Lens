@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.3.0
+
+### Features
+- add project key prompt to configure credentials command
+
 ## 0.2.3
 
 ### Bug Fixes
