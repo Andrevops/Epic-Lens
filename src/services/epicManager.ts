@@ -144,12 +144,13 @@ export class EpicManager implements vscode.Disposable {
     );
 
     const hasCredentials = await this._jiraClient.hasCredentials();
+    this._output.appendLine(`  hasCredentials: ${hasCredentials}`);
     if (!hasCredentials) {
       this._output.appendLine("  No Jira credentials configured — skipping");
       return;
     }
 
-    this._epics = await this._jiraClient.fetchEpics();
+    this._epics = await this._jiraClient.fetchEpics(this._output);
 
     const totalIssues = this._epics.reduce((s, e) => s + e.issues.length, 0);
     const doneIssues = this._epics.reduce(

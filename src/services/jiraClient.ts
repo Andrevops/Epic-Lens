@@ -13,10 +13,8 @@ export class JiraClient implements vscode.Disposable {
 
   /**
    * Fetch all epics (with child issues) for the configured project or JQL.
-   * Returns fully-populated EpicData[] ready for the tree.
    */
-  async fetchEpics(): Promise<EpicData[]> {
-    const output = vscode.window.createOutputChannel("Epic Lens");
+  async fetchEpics(output: vscode.OutputChannel): Promise<EpicData[]> {
     const { baseUrl, email, token } = await this._getCredentials();
     output.appendLine(`  Credentials — baseUrl: ${baseUrl ? "set" : "MISSING"}, email: ${email ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`);
     if (!baseUrl || !email || !token) return [];
@@ -33,19 +31,21 @@ export class JiraClient implements vscode.Disposable {
 
     // Step 1: Fetch epics
     const epicJql = customJql || `project = ${project} AND issuetype = Epic ORDER BY created DESC`;
-    const epicIssues = await this._searchAll(baseUrl, email, token, epicJql);
+    output.appendLine(`  Epic JQL: ${epicJql}`);
+    const epicIssues = await this._searchAll(baseUrl, email, token, epicJql, output);
+    output.appendLine(`  Epics fetched: ${epicIssues.length}`);
 
     if (epicIssues.length === 0) return [];
 
     // Step 2: Fetch all child issues for these epics in one query
     const epicKeys = epicIssues.map((e) => e.key);
     const childrenJql = `"Epic Link" in (${epicKeys.join(",")}) OR parent in (${epicKeys.join(",")}) ORDER BY rank ASC`;
-    const childIssues = await this._searchAll(baseUrl, email, token, childrenJql);
+    const childIssues = await this._searchAll(baseUrl, email, token, childrenJql, output);
+    output.appendLine(`  Children fetched: ${childIssues.length}`);
 
     // Group children by parent epic
     const childrenByEpic = new Map<string, JiraIssue[]>();
     for (const child of childIssues) {
-      // parent field or epic link — Jira uses parent.key for next-gen, epic link for classic
       const parentKey = child.fields.parent?.key;
       if (parentKey && epicKeys.includes(parentKey)) {
         const list = childrenByEpic.get(parentKey) ?? [];
@@ -86,14 +86,12 @@ export class JiraClient implements vscode.Disposable {
     });
   }
 
-  /**
-   * Paginated JQL search — fetches all results across pages.
-   */
   private async _searchAll(
     baseUrl: string,
     email: string,
     token: string,
-    jql: string
+    jql: string,
+    output: vscode.OutputChannel
   ): Promise<JiraIssue[]> {
     const all: JiraIssue[] = [];
     const maxResults = 100;
@@ -106,7 +104,7 @@ export class JiraClient implements vscode.Disposable {
         url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
       }
 
-      const response = await this._fetch(url, email, token);
+      const response = await this._fetch(url, email, token, output);
       if (!response) break;
 
       const data = (await response.json()) as JiraSearchResponse;
@@ -123,9 +121,9 @@ export class JiraClient implements vscode.Disposable {
   private async _fetch(
     url: string,
     email: string,
-    token: string
+    token: string,
+    output: vscode.OutputChannel
   ): Promise<Response | null> {
-    const output = vscode.window.createOutputChannel("Epic Lens");
     output.appendLine(`  Fetch: ${url.replace(/\?.*/, "?...")}`);
     try {
       const response = await fetch(url, {
@@ -160,15 +158,14 @@ export class JiraClient implements vscode.Disposable {
       }
 
       if (!response.ok) {
-        const output = vscode.window.createOutputChannel("Epic Lens");
-        output.appendLine(`Jira API error ${response.status}: ${url}`);
+        const body = await response.text();
+        output.appendLine(`  Jira API error ${response.status}: ${body.slice(0, 200)}`);
         return null;
       }
 
       return response;
     } catch (err) {
-      const output = vscode.window.createOutputChannel("Epic Lens");
-      output.appendLine(`Jira fetch error: ${err}`);
+      output.appendLine(`  Jira fetch error: ${err}`);
       return null;
     }
   }
