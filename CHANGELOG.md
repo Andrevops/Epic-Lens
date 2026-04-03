@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.2.3
+
+### Bug Fixes
+- route all diagnostic logging through shared output channel
+
 ## 0.2.2
 
 ### Bug Fixes

@@ -2,7 +2,7 @@
   "name": "epic-lens",
   "displayName": "Epic Lens",
   "description": "Jira Epic status visualizer — fetch epics and issues from Jira, track progress with a sidebar tree and dashboard",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "publisher": "andrevops-com",
   "license": "MIT",
   "icon": "resources/icons/icon.png",
