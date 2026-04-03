@@ -79,7 +79,7 @@ export class JiraClient implements vscode.Disposable {
         summary: epic.fields.summary,
         status: statusName,
         statusCategory: categorizeStatus(statusName),
-        issues: children.map((child, idx) => this._toIssueData(child, idx)),
+        issues: children.map((child) => this._toIssueData(child)),
       };
     });
 
@@ -97,13 +97,13 @@ export class JiraClient implements vscode.Disposable {
       output.appendLine(`  Orphan JQL: ${orphanJql}`);
       const orphanIssues = await this._searchAll(baseUrl, email, token, orphanJql, output);
       output.appendLine(`  Orphans fetched: ${orphanIssues.length}`);
-      orphans = orphanIssues.map((issue, idx) => this._toIssueData(issue, idx));
+      orphans = orphanIssues.map((issue) => this._toIssueData(issue));
     }
 
     return { epics, orphans };
   }
 
-  private _toIssueData(issue: JiraIssue, idx: number): IssueData {
+  private _toIssueData(issue: JiraIssue): IssueData {
     const statusName = issue.fields.status.name;
     return {
       key: issue.key,
@@ -114,9 +114,6 @@ export class JiraClient implements vscode.Disposable {
       assignee: issue.fields.assignee?.displayName,
       priority: issue.fields.priority?.name,
       updated: issue.fields.updated,
-      workingOrder: idx,
-      checkedCount: 0,
-      totalCount: 0,
     };
   }
 

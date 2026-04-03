@@ -90,12 +90,6 @@
         "icon": "$(eye)"
       },
       {
-        "command": "epicLens.openFile",
-        "title": "Open Markdown File",
-        "category": "Epic Lens",
-        "icon": "$(go-to-file)"
-      },
-      {
         "command": "epicLens.openInJira",
         "title": "Open in Jira",
         "category": "Epic Lens",
@@ -202,11 +196,6 @@
         }
       ],
       "view/item/context": [
-        {
-          "command": "epicLens.openFile",
-          "when": "view == epicLens.epics && viewItem =~ /issue|epic/",
-          "group": "navigation@1"
-        },
         {
           "command": "epicLens.openInJira",
           "when": "view == epicLens.epics && viewItem =~ /issue|epic/",

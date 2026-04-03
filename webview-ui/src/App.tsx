@@ -6,24 +6,19 @@ interface IssueData {
   key: string;
   summary: string;
   type: string;
-  fileName: string;
-  filePath: string;
-  workingOrder: number;
-  checkedCount: number;
-  totalCount: number;
   status: string;
   statusCategory: string;
+  assignee?: string;
+  priority?: string;
+  updated?: string;
 }
 
 interface EpicData {
   key: string;
   summary: string;
-  file: string;
-  dir: string;
-  repoPath: string;
-  repoName: string;
+  status: string;
+  statusCategory: string;
   issues: IssueData[];
-  timestamp: string;
 }
 
 interface FilterState {
@@ -33,13 +28,13 @@ interface FilterState {
 }
 
 const STATUS_EMOJI: Record<string, string> = {
-  done: "✅",
-  in_progress: "🔄",
-  review: "👀",
-  qa: "🧪",
-  blocked: "🚫",
-  rejected: "❌",
-  backlog: "📋",
+  done: "\u2705",
+  in_progress: "\uD83D\uDD04",
+  review: "\uD83D\uDC40",
+  qa: "\uD83E\uDDEA",
+  blocked: "\uD83D\uDEAB",
+  rejected: "\u274C",
+  backlog: "\uD83D\uDCCB",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -111,7 +106,7 @@ export function App() {
   return (
     <>
       <div className="toolbar">
-        <h1>⚡ Epic Lens Dashboard</h1>
+        <h1>Epic Lens Dashboard</h1>
         <div className="view-toggle">
           <button
             className={viewMode === "board" ? "active" : ""}
@@ -157,7 +152,7 @@ export function App() {
           Hide Done
         </label>
         <button onClick={() => vscode.postMessage({ type: "refresh" })}>
-          ⟳ Refresh
+          Refresh
         </button>
       </div>
 
@@ -234,8 +229,8 @@ function ListView({ epics }: { epics: EpicData[] }) {
   if (epics.length === 0) {
     return (
       <div className="empty">
-        No epics found. Run &quot;Epic Lens: Scan for Epics&quot; to discover
-        them.
+        No epics found. Run &quot;Epic Lens: Fetch Epics from Jira&quot; to
+        load them.
       </div>
     );
   }
@@ -254,7 +249,7 @@ function ListView({ epics }: { epics: EpicData[] }) {
             <div className="epic-header">
               <h2
                 onClick={() =>
-                  vscode.postMessage({ type: "openFile", filePath: epic.file })
+                  vscode.postMessage({ type: "openInJira", key: epic.key })
                 }
               >
                 {epic.key} — {epic.summary}
@@ -281,17 +276,13 @@ function ListView({ epics }: { epics: EpicData[] }) {
 
 function IssueCard({ issue }: { issue: IssueData }) {
   const cat = issue.statusCategory || "backlog";
-  const emoji = STATUS_EMOJI[cat] || "📋";
-  const criteria =
-    issue.totalCount > 0
-      ? ` · ${issue.checkedCount}/${issue.totalCount} criteria`
-      : "";
+  const emoji = STATUS_EMOJI[cat] || "\uD83D\uDCCB";
 
   return (
     <div
       className={`card ${cat}`}
       onClick={() =>
-        vscode.postMessage({ type: "openFile", filePath: issue.filePath })
+        vscode.postMessage({ type: "openInJira", key: issue.key })
       }
     >
       <div className="card-key">
@@ -299,10 +290,8 @@ function IssueCard({ issue }: { issue: IssueData }) {
       </div>
       <div className="card-title">{issue.summary}</div>
       <div className="card-meta">
-        <span>
-          {issue.status}
-          {criteria}
-        </span>
+        <span>{issue.status}</span>
+        {issue.assignee && <span>{issue.assignee}</span>}
       </div>
     </div>
   );

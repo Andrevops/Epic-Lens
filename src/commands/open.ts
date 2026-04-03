@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { CONFIG } from "../constants";
 
 /**
- * Extract a value from a command argument that may be:
+ * Extract a Jira key from a command argument that may be:
  * - A raw string (from programmatic calls / webview)
  * - A TreeNode object (from context menu clicks)
  */
@@ -10,7 +10,6 @@ function resolveKey(arg: unknown): string | undefined {
   if (typeof arg === "string") return arg;
   if (arg && typeof arg === "object") {
     const node = arg as Record<string, unknown>;
-    // IssueNode → node.issue.key, EpicNode → node.epic.key
     if (node.kind === "issue") {
       const issue = node.issue as Record<string, unknown>;
       return issue?.key as string;
@@ -23,43 +22,9 @@ function resolveKey(arg: unknown): string | undefined {
   return undefined;
 }
 
-function resolveFilePath(arg: unknown): string | undefined {
-  if (typeof arg === "string") return arg;
-  if (arg && typeof arg === "object") {
-    const node = arg as Record<string, unknown>;
-    if (node.kind === "issue") {
-      const issue = node.issue as Record<string, unknown>;
-      return issue?.filePath as string;
-    }
-    if (node.kind === "epic") {
-      const epic = node.epic as Record<string, unknown>;
-      return epic?.file as string;
-    }
-  }
-  return undefined;
-}
-
 export function registerOpenCommands(
   context: vscode.ExtensionContext
 ): void {
-  context.subscriptions.push(
-    vscode.commands.registerCommand(
-      "epicLens.openFile",
-      async (arg: unknown) => {
-        const filePath = resolveFilePath(arg);
-        if (!filePath) return;
-        try {
-          const uri = vscode.Uri.file(filePath);
-          await vscode.window.showTextDocument(uri);
-        } catch {
-          vscode.window.showErrorMessage(
-            `Epic Lens: Could not open file: ${filePath}`
-          );
-        }
-      }
-    )
-  );
-
   context.subscriptions.push(
     vscode.commands.registerCommand(
       "epicLens.openInJira",

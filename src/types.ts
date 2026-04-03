@@ -6,12 +6,7 @@ export interface EpicData {
   summary: string;
   status: string;
   statusCategory: StatusCategory;
-  file?: string; // absolute path to epic markdown (if local file exists)
-  dir?: string; // absolute path to epic directory (if local file exists)
-  repoPath?: string; // nearest git root or parent dir
-  repoName?: string; // display name for repo grouping
   issues: IssueData[];
-  timestamp?: string;
 }
 
 export interface IssueData {
@@ -23,13 +18,6 @@ export interface IssueData {
   assignee?: string;
   priority?: string;
   updated?: string;
-  // Local file info (optional — only present when local markdown exists)
-  fileName?: string;
-  filePath?: string; // absolute path to issue markdown
-  workingOrder?: number;
-  // Local acceptance criteria (from markdown checkboxes)
-  checkedCount: number;
-  totalCount: number;
 }
 
 /** Jira REST API search/jql response */
@@ -74,7 +62,6 @@ export type ExtensionMessage =
 export type WebviewMessage =
   | { type: "ready" }
   | { type: "refresh" }
-  | { type: "openFile"; filePath: string }
   | { type: "openInJira"; key: string }
   | { type: "copyKey"; key: string }
   | { type: "setFilter"; filters: Partial<FilterState> };

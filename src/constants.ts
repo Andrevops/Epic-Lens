@@ -9,7 +9,6 @@ export const CMD = {
   filterByType: "epicLens.filterByType",
   toggleHideDone: "epicLens.toggleHideDone",
   clearFilters: "epicLens.clearFilters",
-  openFile: "epicLens.openFile",
   openInJira: "epicLens.openInJira",
   copyKey: "epicLens.copyKey",
   configureCredentials: "epicLens.configureCredentials",

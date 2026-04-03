@@ -85,9 +85,6 @@ export class DashboardPanel {
       case "refresh":
         this._manager.scan();
         break;
-      case "openFile":
-        vscode.commands.executeCommand("epicLens.openFile", msg.filePath);
-        break;
       case "openInJira":
         vscode.commands.executeCommand("epicLens.openInJira", msg.key);
         break;
@@ -564,7 +561,7 @@ export class DashboardPanel {
 
         html += '<div class="epic-section">';
         html += '<div class="epic-header">';
-        html += '<h2 data-epic-key="' + epic.key + '" data-file="' + esc(epic.file) + '">' + epic.key + ' — ' + esc(epic.summary) + '</h2>';
+        html += '<h2 data-key="' + epic.key + '">' + epic.key + ' — ' + esc(epic.summary) + '</h2>';
         html += '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>';
         html += '<span class="progress-text">' + done + '/' + total + ' (' + pct + '%)</span>';
         html += '</div>';
@@ -581,7 +578,7 @@ export class DashboardPanel {
       // Epic header click
       document.querySelectorAll('.epic-header h2').forEach(el => {
         el.addEventListener('click', () => {
-          vscode.postMessage({ type: 'openFile', filePath: el.dataset.file });
+          vscode.postMessage({ type: 'openInJira', key: el.dataset.key });
         });
       });
     }
@@ -589,14 +586,11 @@ export class DashboardPanel {
     function cardHtml(issue) {
       const cat = issue.statusCategory || 'backlog';
       const emoji = STATUS_EMOJI[cat] || '📋';
-      const criteria = issue.totalCount > 0
-        ? ' · ' + issue.checkedCount + '/' + issue.totalCount + ' criteria'
-        : '';
-      return '<div class="card ' + cat + '" data-key="' + issue.key + '" data-file="' + esc(issue.filePath) + '" oncontextmenu="showContextMenu(event, this)">' +
+      return '<div class="card ' + cat + '" data-key="' + issue.key + '" oncontextmenu="showContextMenu(event, this)">' +
         '<div class="card-key">' + emoji + ' ' + issue.key + ' · ' + issue.type + '</div>' +
         '<div class="card-title">' + esc(issue.summary) + '</div>' +
         '<div class="card-meta">' +
-          '<span>' + (issue.status || 'Unknown') + criteria + '</span>' +
+          '<span>' + (issue.status || 'Unknown') + '</span>' +
         '</div>' +
       '</div>';
     }
@@ -605,7 +599,7 @@ export class DashboardPanel {
       document.querySelectorAll('.card').forEach(el => {
         el.addEventListener('click', (e) => {
           if (e.button !== 0) return;
-          vscode.postMessage({ type: 'openFile', filePath: el.dataset.file });
+          vscode.postMessage({ type: 'openInJira', key: el.dataset.key });
         });
       });
     }
@@ -615,9 +609,7 @@ export class DashboardPanel {
       e.stopPropagation();
       const menu = document.getElementById('context-menu');
       const key = el.dataset.key;
-      const file = el.dataset.file;
       menu.innerHTML =
-        '<div class="context-menu-item" onclick="vscode.postMessage({type:\\'openFile\\',filePath:\\'' + file.replace(/'/g, "\\\\'") + '\\'})">📄 Open File</div>' +
         '<div class="context-menu-item" onclick="vscode.postMessage({type:\\'openInJira\\',key:\\'' + key + '\\'})">🔗 Open in Jira</div>' +
         '<div class="context-menu-item" onclick="vscode.postMessage({type:\\'copyKey\\',key:\\'' + key + '\\'})">📋 Copy Key</div>';
       menu.style.left = e.pageX + 'px';
