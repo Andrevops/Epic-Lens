@@ -12,22 +12,6 @@ export function registerCredentialCommands(
       async () => {
         const config = vscode.workspace.getConfiguration();
 
-        // Email
-        const currentEmail =
-          config.get<string>(CONFIG.jiraEmail) ?? "";
-        const email = await vscode.window.showInputBox({
-          title: "Jira Email",
-          prompt: "Enter your Jira account email",
-          value: currentEmail,
-          validateInput: (v) =>
-            v.includes("@") ? null : "Must be a valid email",
-        });
-        if (email === undefined) return; // cancelled
-
-        if (email !== currentEmail) {
-          await config.update(CONFIG.jiraEmail, email, true);
-        }
-
         // Base URL
         const currentUrl =
           config.get<string>(CONFIG.jiraBaseUrl) ?? "";
@@ -35,6 +19,7 @@ export function registerCredentialCommands(
           title: "Jira Base URL",
           prompt: "Enter your Jira Cloud instance URL",
           value: currentUrl,
+          placeHolder: "https://yourorg.atlassian.net",
           validateInput: (v) =>
             v.includes("atlassian.net") ? null : "Must be an Atlassian URL",
         });
@@ -48,21 +33,54 @@ export function registerCredentialCommands(
           );
         }
 
+        // Email
+        const currentEmail =
+          config.get<string>(CONFIG.jiraEmail) ?? "";
+        const email = await vscode.window.showInputBox({
+          title: "Jira Email",
+          prompt: "Enter your Jira account email",
+          value: currentEmail,
+          validateInput: (v) =>
+            v.includes("@") ? null : "Must be a valid email",
+        });
+        if (email === undefined) return;
+
+        if (email !== currentEmail) {
+          await config.update(CONFIG.jiraEmail, email, true);
+        }
+
         // API Token
         const token = await vscode.window.showInputBox({
           title: "Jira API Token",
           prompt:
-            "Enter your Jira API token (stored securely in OS keychain)",
+            "Enter your Jira API token (stored securely in OS keychain). Leave empty to use ATLASSIAN_TOKEN env var.",
           password: true,
-          validateInput: (v) =>
-            v.length > 0 ? null : "Token cannot be empty",
         });
         if (token === undefined) return;
 
-        await jiraClient.storeToken(token);
+        if (token) {
+          await jiraClient.storeToken(token);
+        }
+
+        // Project
+        const currentProject =
+          config.get<string>(CONFIG.jiraProject) ?? "";
+        const project = await vscode.window.showInputBox({
+          title: "Jira Project Key",
+          prompt: "Enter the Jira project key to fetch epics from",
+          value: currentProject,
+          placeHolder: "MYPROJ",
+          validateInput: (v) =>
+            v.length > 0 ? null : "Project key is required",
+        });
+        if (project === undefined) return;
+
+        if (project !== currentProject) {
+          await config.update(CONFIG.jiraProject, project, true);
+        }
 
         vscode.window.showInformationMessage(
-          "Epic Lens: Jira credentials configured successfully"
+          "Epic Lens: Jira configuration saved"
         );
       }
     )
