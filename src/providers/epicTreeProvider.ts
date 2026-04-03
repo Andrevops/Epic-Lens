@@ -177,7 +177,7 @@ export class EpicTreeProvider
         );
       case "in_progress":
         return new vscode.ThemeIcon(
-          "loading~spin",
+          "play-circle",
           new vscode.ThemeColor("charts.blue")
         );
       case "review":
