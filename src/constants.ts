@@ -19,8 +19,8 @@ export const CMD = {
 export const CONFIG = {
   jiraBaseUrl: "epicLens.jiraBaseUrl",
   jiraEmail: "epicLens.jiraEmail",
-  rootPath: "epicLens.rootPath",
-  scanPaths: "epicLens.scanPaths",
+  jiraProject: "epicLens.jiraProject",
+  jiraJql: "epicLens.jiraJql",
   hideDoneIssues: "epicLens.hideDoneIssues",
   scanOnStartup: "epicLens.scanOnStartup",
   showRepoGrouping: "epicLens.showRepoGrouping",
@@ -29,7 +29,6 @@ export const CONFIG = {
 export const CTX = {
   hasEpics: "epicLens.hasEpics",
   hasFilters: "epicLens.hasFilters",
-  hasDiffchestrator: "epicLens.hasDiffchestrator",
   hideDone: "epicLens.hideDone",
 } as const;
 

@@ -1,16 +1,9 @@
 import * as vscode from "vscode";
-import * as path from "path";
 import { CONFIG, STATUS_EMOJI, CMD } from "../constants";
 import type { EpicData, IssueData } from "../types";
 import type { EpicManager } from "../services/epicManager";
 
-type TreeNode = RepoNode | EpicNode | IssueNode;
-
-interface RepoNode {
-  kind: "repo";
-  name: string;
-  epics: EpicData[];
-}
+type TreeNode = EpicNode | IssueNode;
 
 interface EpicNode {
   kind: "epic";
@@ -20,7 +13,7 @@ interface EpicNode {
 interface IssueNode {
   kind: "issue";
   issue: IssueData;
-  epicDir: string;
+  epicKey: string;
   jiraBaseUrl: string;
 }
 
@@ -42,8 +35,6 @@ export class EpicTreeProvider
 
   getTreeItem(node: TreeNode): vscode.TreeItem {
     switch (node.kind) {
-      case "repo":
-        return this._repoItem(node);
       case "epic":
         return this._epicItem(node);
       case "issue":
@@ -53,10 +44,6 @@ export class EpicTreeProvider
 
   getChildren(node?: TreeNode): TreeNode[] {
     if (!node) return this._getRootNodes();
-
-    if (node.kind === "repo") {
-      return node.epics.map((epic) => ({ kind: "epic" as const, epic }));
-    }
 
     if (node.kind === "epic") {
       const jiraBaseUrl = (
@@ -71,7 +58,7 @@ export class EpicTreeProvider
         ?.issues.map((issue) => ({
           kind: "issue" as const,
           issue,
-          epicDir: node.epic.dir,
+          epicKey: node.epic.key,
           jiraBaseUrl,
         })) ?? [];
     }
@@ -81,50 +68,7 @@ export class EpicTreeProvider
 
   private _getRootNodes(): TreeNode[] {
     const epics = this._manager.getFilteredEpics();
-    const showGrouping =
-      vscode.workspace
-        .getConfiguration()
-        .get<boolean>(CONFIG.showRepoGrouping) ?? true;
-
-    if (!showGrouping || epics.length === 0) {
-      return epics.map((epic) => ({ kind: "epic" as const, epic }));
-    }
-
-    // Group by repoName
-    const groups = new Map<string, EpicData[]>();
-    for (const epic of epics) {
-      const existing = groups.get(epic.repoName) ?? [];
-      existing.push(epic);
-      groups.set(epic.repoName, existing);
-    }
-
-    // If single repo, flatten
-    if (groups.size === 1) {
-      return epics.map((epic) => ({ kind: "epic" as const, epic }));
-    }
-
-    return [...groups.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, repoEpics]) => ({
-        kind: "repo" as const,
-        name,
-        epics: repoEpics,
-      }));
-  }
-
-  private _repoItem(node: RepoNode): vscode.TreeItem {
-    const totalIssues = node.epics.reduce(
-      (sum, e) => sum + e.issues.length,
-      0
-    );
-    const item = new vscode.TreeItem(
-      node.name,
-      vscode.TreeItemCollapsibleState.Expanded
-    );
-    item.iconPath = new vscode.ThemeIcon("folder");
-    item.description = `${node.epics.length} epic${node.epics.length !== 1 ? "s" : ""}, ${totalIssues} issues`;
-    item.contextValue = "repo";
-    return item;
+    return epics.map((epic) => ({ kind: "epic" as const, epic }));
   }
 
   private _epicItem(node: EpicNode): vscode.TreeItem {
@@ -135,7 +79,8 @@ export class EpicTreeProvider
     const total = epic.issues.length;
     const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-    const label = `${epic.key} ${epic.summary}`;
+    const emoji = STATUS_EMOJI[epic.statusCategory] ?? "📋";
+    const label = `${emoji} ${epic.key} ${epic.summary}`;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.Collapsed
@@ -149,11 +94,11 @@ export class EpicTreeProvider
     item.tooltip = this._epicTooltip(epic, done, total, pct);
     item.contextValue = "epic";
 
-    // Click to open epic markdown
+    // Click opens in Jira
     item.command = {
-      command: CMD.openFile,
-      title: "Open Epic File",
-      arguments: [epic.file],
+      command: CMD.openInJira,
+      title: "Open in Jira",
+      arguments: [epic.key],
     };
 
     return item;
@@ -171,10 +116,7 @@ export class EpicTreeProvider
       `**${epic.key}** — ${epic.summary}\n\n`
     );
     md.appendMarkdown(`${bar} ${done}/${total} (${pct}%)\n\n`);
-    md.appendMarkdown(`📁 \`${epic.repoName}\`\n\n`);
-    md.appendMarkdown(
-      `🕐 Created: ${new Date(epic.timestamp).toLocaleDateString()}`
-    );
+    md.appendMarkdown(`**Status:** ${epic.status}`);
     return md;
   }
 
@@ -187,9 +129,6 @@ export class EpicTreeProvider
   private _issueItem(node: IssueNode): vscode.TreeItem {
     const { issue } = node;
     const emoji = STATUS_EMOJI[issue.statusCategory];
-    const statusText = issue.totalCount > 0
-      ? `${issue.status} [${issue.checkedCount}/${issue.totalCount}]`
-      : issue.status;
 
     const label = `${emoji} ${issue.key} ${issue.type}: ${issue.summary}`;
     const item = new vscode.TreeItem(
@@ -197,16 +136,16 @@ export class EpicTreeProvider
       vscode.TreeItemCollapsibleState.None
     );
 
-    item.description = statusText;
+    item.description = issue.status;
     item.iconPath = this._issueIcon(issue);
     item.tooltip = this._issueTooltip(issue, node.jiraBaseUrl);
     item.contextValue = "issue";
 
-    // Click to open the markdown file
+    // Click opens in Jira
     item.command = {
-      command: CMD.openFile,
-      title: "Open Issue File",
-      arguments: [issue.filePath],
+      command: CMD.openInJira,
+      title: "Open in Jira",
+      arguments: [issue.key],
     };
 
     return item;
@@ -262,14 +201,11 @@ export class EpicTreeProvider
     );
     md.appendMarkdown(`**Type:** ${issue.type}\n\n`);
     md.appendMarkdown(`**Status:** ${issue.status}\n\n`);
-    if (issue.totalCount > 0) {
-      const pct = Math.round(
-        (issue.checkedCount / issue.totalCount) * 100
-      );
-      const bar = this._progressBar(pct);
-      md.appendMarkdown(
-        `**Criteria:** ${bar} ${issue.checkedCount}/${issue.totalCount} (${pct}%)\n\n`
-      );
+    if (issue.assignee) {
+      md.appendMarkdown(`**Assignee:** ${issue.assignee}\n\n`);
+    }
+    if (issue.priority) {
+      md.appendMarkdown(`**Priority:** ${issue.priority}\n\n`);
     }
     if (jiraBaseUrl) {
       md.appendMarkdown(

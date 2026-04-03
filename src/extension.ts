@@ -9,20 +9,13 @@ import { registerOpenCommands } from "./commands/open";
 import { registerCredentialCommands } from "./commands/credentials";
 import { JiraClient } from "./services/jiraClient";
 
-/** Diffchestrator public API (consumed when the extension is installed) */
-interface DiffchestratorApi {
-  getCurrentRoot(): string | undefined;
-  getSelectedRepo(): string | undefined;
-  onDidChangeSelection: vscode.Event<void>;
-}
-
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Epic Lens");
   output.appendLine("Epic Lens activating...");
 
   // Services
   const jiraClient = new JiraClient(context.secrets);
-  const manager = new EpicManager(context);
+  const manager = new EpicManager(context, jiraClient);
 
   // TreeView
   const treeProvider = new EpicTreeProvider(manager);
@@ -59,44 +52,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Subscriptions
   context.subscriptions.push(manager, jiraClient, treeView, output);
 
-  // Diffchestrator integration — filter by active root
-  const diffExt = vscode.extensions.getExtension<DiffchestratorApi>(
-    "andrevops-com.diffchestrator"
-  );
-  const hasDiff = !!diffExt;
-  vscode.commands.executeCommand("setContext", CTX.hasDiffchestrator, hasDiff);
-
-  if (diffExt) {
-    output.appendLine("Diffchestrator detected — linking root filter");
-
-    const bindDiffchestrator = (api: DiffchestratorApi) => {
-      // Set initial root filter
-      const root = api.getCurrentRoot();
-      if (root) {
-        manager.setRootFilter(root);
-        output.appendLine(`  Root filter: ${root}`);
-      }
-
-      // Re-filter when Diffchestrator selection changes
-      context.subscriptions.push(
-        api.onDidChangeSelection(() => {
-          const newRoot = api.getCurrentRoot();
-          if (newRoot !== manager.rootFilter) {
-            manager.setRootFilter(newRoot);
-            output.appendLine(`  Root filter changed: ${newRoot}`);
-          }
-        })
-      );
-    };
-
-    if (diffExt.isActive) {
-      bindDiffchestrator(diffExt.exports);
-    } else {
-      diffExt.activate().then(bindDiffchestrator);
-    }
-  }
-
-  // Auto-scan on startup
+  // Auto-fetch on startup
   const scanOnStartup =
     vscode.workspace
       .getConfiguration()

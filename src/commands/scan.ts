@@ -10,7 +10,7 @@ export function registerScanCommands(
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Epic Lens: Scanning for epics...",
+          title: "Epic Lens: Fetching epics from Jira...",
           cancellable: false,
         },
         async () => {
@@ -29,7 +29,7 @@ export function registerScanCommands(
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Epic Lens: Rescanning local files...",
+          title: "Epic Lens: Refreshing from Jira...",
           cancellable: false,
         },
         async () => {

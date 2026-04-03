@@ -1,7 +1,7 @@
 {
   "name": "epic-lens",
   "displayName": "Epic Lens",
-  "description": "Jira Epic status visualizer — scan local markdown files, fetch live ticket status, and track progress across repos",
+  "description": "Jira Epic status visualizer — fetch epics and issues from Jira, track progress with a sidebar tree and dashboard",
   "version": "0.1.0",
   "publisher": "andrevops-com",
   "license": "MIT",
@@ -54,14 +54,14 @@
     "viewsWelcome": [
       {
         "view": "epicLens.epics",
-        "contents": "No epics found.\n[Scan for Epics](command:epicLens.scan)",
+        "contents": "No epics found.\n[Fetch from Jira](command:epicLens.scan)\n\nConfigure your Jira project in settings.",
         "when": "!epicLens.hasEpics"
       }
     ],
     "commands": [
       {
         "command": "epicLens.scan",
-        "title": "Scan for Epics",
+        "title": "Fetch Epics from Jira",
         "category": "Epic Lens",
         "icon": "$(search)"
       },
@@ -232,16 +232,15 @@
           "default": "",
           "description": "Jira account email for API authentication"
         },
-        "epicLens.rootPath": {
+        "epicLens.jiraProject": {
           "type": "string",
           "default": "",
-          "description": "Root directory to scan for epics. Only epics under this path are shown. Leave empty to show all."
+          "description": "Jira project key to fetch epics from (e.g. \"MYPROJ\")"
         },
-        "epicLens.scanPaths": {
-          "type": "array",
-          "items": { "type": "string" },
-          "default": [],
-          "description": "Additional directories to scan for epic files"
+        "epicLens.jiraJql": {
+          "type": "string",
+          "default": "",
+          "description": "Custom JQL to find epics (overrides jiraProject). e.g. \"project = MYPROJ AND issuetype = Epic AND status != Done\""
         },
         "epicLens.hideDoneIssues": {
           "type": "boolean",
@@ -251,12 +250,7 @@
         "epicLens.scanOnStartup": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically scan for epics on extension activation"
-        },
-        "epicLens.showRepoGrouping": {
-          "type": "boolean",
-          "default": true,
-          "description": "Group epics by repository"
+          "description": "Automatically fetch epics from Jira on activation"
         }
       }
     }

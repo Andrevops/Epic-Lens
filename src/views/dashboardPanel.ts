@@ -83,8 +83,7 @@ export class DashboardPanel {
         this._sendData();
         break;
       case "refresh":
-        this._manager["_cache"].clear();
-        this._manager.refreshStatuses();
+        this._manager.scan();
         break;
       case "openFile":
         vscode.commands.executeCommand("epicLens.openFile", msg.filePath);
