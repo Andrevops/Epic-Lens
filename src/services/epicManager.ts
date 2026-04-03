@@ -5,6 +5,7 @@ import type { JiraClient } from "./jiraClient";
 
 export class EpicManager implements vscode.Disposable {
   private _epics: EpicData[] = [];
+  private _orphans: IssueData[] = [];
   private _filters: FilterState = {
     statusFilter: "all",
     typeFilter: "all",
@@ -61,6 +62,15 @@ export class EpicManager implements vscode.Disposable {
 
   get epics(): EpicData[] {
     return this._epics;
+  }
+
+  get orphans(): IssueData[] {
+    return this._orphans;
+  }
+
+  /** Get orphan issues with filters applied */
+  getFilteredOrphans(): IssueData[] {
+    return this._filterIssues(this._orphans);
   }
 
   get filters(): FilterState {
@@ -151,7 +161,9 @@ export class EpicManager implements vscode.Disposable {
       return;
     }
 
-    this._epics = await this._jiraClient.fetchEpics(this._output);
+    const result = await this._jiraClient.fetchAll(this._output);
+    this._epics = result.epics;
+    this._orphans = result.orphans;
 
     const totalIssues = this._epics.reduce((s, e) => s + e.issues.length, 0);
     const doneIssues = this._epics.reduce(
@@ -159,20 +171,23 @@ export class EpicManager implements vscode.Disposable {
       0
     );
     this._output.appendLine(
-      `  Found ${this._epics.length} epics, ${totalIssues} issues (${doneIssues} done)`
+      `  Found ${this._epics.length} epics, ${totalIssues} child issues (${doneIssues} done), ${this._orphans.length} standalone issues`
     );
 
     this._updateContexts();
     this._onDidChangeEpics.fire();
   }
 
-  /** Get unique issue types across all epics */
+  /** Get unique issue types across all epics and orphans */
   getIssueTypes(): string[] {
     const types = new Set<string>();
     for (const epic of this._epics) {
       for (const issue of epic.issues) {
         types.add(issue.type);
       }
+    }
+    for (const issue of this._orphans) {
+      types.add(issue.type);
     }
     return [...types].sort();
   }
@@ -181,7 +196,7 @@ export class EpicManager implements vscode.Disposable {
     vscode.commands.executeCommand(
       "setContext",
       CTX.hasEpics,
-      this._epics.length > 0
+      this._epics.length > 0 || this._orphans.length > 0
     );
     vscode.commands.executeCommand(
       "setContext",

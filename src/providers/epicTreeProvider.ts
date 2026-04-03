@@ -67,8 +67,25 @@ export class EpicTreeProvider
   }
 
   private _getRootNodes(): TreeNode[] {
+    const jiraBaseUrl = (
+      vscode.workspace
+        .getConfiguration()
+        .get<string>(CONFIG.jiraBaseUrl) ?? ""
+    ).replace(/\/$/, "");
+
     const epics = this._manager.getFilteredEpics();
-    return epics.map((epic) => ({ kind: "epic" as const, epic }));
+    const epicNodes: TreeNode[] = epics.map((epic) => ({ kind: "epic" as const, epic }));
+
+    // Orphan issues appear after epics at the same level
+    const orphans = this._manager.getFilteredOrphans();
+    const orphanNodes: TreeNode[] = orphans.map((issue) => ({
+      kind: "issue" as const,
+      issue,
+      epicKey: "",
+      jiraBaseUrl,
+    }));
+
+    return [...epicNodes, ...orphanNodes];
   }
 
   private _epicItem(node: EpicNode): vscode.TreeItem {

@@ -52,6 +52,12 @@ export interface JiraIssue {
   };
 }
 
+/** Result of a Jira fetch — epics with children + standalone issues */
+export interface JiraFetchResult {
+  epics: EpicData[];
+  orphans: IssueData[];
+}
+
 /** Filter state */
 export interface FilterState {
   statusFilter: StatusCategory | "all";

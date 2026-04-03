@@ -71,12 +71,13 @@ function updateStatusBar(
   statusBar: vscode.StatusBarItem
 ): void {
   const epics = manager.epics;
-  if (epics.length === 0) {
+  const orphans = manager.orphans;
+  if (epics.length === 0 && orphans.length === 0) {
     statusBar.hide();
     return;
   }
 
-  const allIssues = epics.flatMap((e) => e.issues);
+  const allIssues = [...epics.flatMap((e) => e.issues), ...orphans];
   const total = allIssues.length;
   const done = allIssues.filter(
     (i) => i.statusCategory === "done"

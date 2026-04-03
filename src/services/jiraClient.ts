@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CONFIG, SECRET_KEY_TOKEN, categorizeStatus } from "../constants";
-import type { JiraSearchResponse, JiraIssue, EpicData, IssueData } from "../types";
+import type { JiraSearchResponse, JiraIssue, JiraFetchResult, EpicData, IssueData } from "../types";
 
 export class JiraClient implements vscode.Disposable {
   private _secretStorage: vscode.SecretStorage;
@@ -12,12 +12,13 @@ export class JiraClient implements vscode.Disposable {
   dispose(): void {}
 
   /**
-   * Fetch all epics (with child issues) for the configured project or JQL.
+   * Fetch epics (with children) and standalone issues from Jira.
    */
-  async fetchEpics(output: vscode.OutputChannel): Promise<EpicData[]> {
+  async fetchAll(output: vscode.OutputChannel): Promise<JiraFetchResult> {
+    const empty: JiraFetchResult = { epics: [], orphans: [] };
     const { baseUrl, email, token } = await this._getCredentials();
     output.appendLine(`  Credentials — baseUrl: ${baseUrl ? "set" : "MISSING"}, email: ${email ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`);
-    if (!baseUrl || !email || !token) return [];
+    if (!baseUrl || !email || !token) return empty;
 
     const config = vscode.workspace.getConfiguration();
     const customJql = config.get<string>(CONFIG.jiraJql) ?? "";
@@ -27,35 +28,36 @@ export class JiraClient implements vscode.Disposable {
 
     if (!customJql && !project) {
       output.appendLine("  No project or JQL configured — skipping");
-      return [];
+      return empty;
     }
 
-    // Step 1: Build JQL and fetch epics
+    // Build scope/status filters (reused for epics and orphans)
+    const scopeFilter = scope === "mine"
+      ? "(assignee = currentUser() OR reporter = currentUser())"
+      : "";
+    const statusFilter = "statusCategory != Done";
+
+    // Step 1: Fetch epics
     let epicJql: string;
     if (customJql) {
       epicJql = customJql;
     } else {
-      const parts = [
-        `project = ${project}`,
-        "issuetype = Epic",
-        "statusCategory != Done",
-      ];
-      if (scope === "mine") {
-        parts.push("(assignee = currentUser() OR reporter = currentUser())");
-      }
+      const parts = [`project = ${project}`, "issuetype = Epic", statusFilter];
+      if (scopeFilter) parts.push(scopeFilter);
       epicJql = parts.join(" AND ") + " ORDER BY created DESC";
     }
     output.appendLine(`  Epic JQL: ${epicJql}`);
     const epicIssues = await this._searchAll(baseUrl, email, token, epicJql, output);
     output.appendLine(`  Epics fetched: ${epicIssues.length}`);
 
-    if (epicIssues.length === 0) return [];
-
-    // Step 2: Fetch all child issues for these epics in one query
+    // Step 2: Fetch children for epics
+    let childIssues: JiraIssue[] = [];
     const epicKeys = epicIssues.map((e) => e.key);
-    const childrenJql = `"Epic Link" in (${epicKeys.join(",")}) OR parent in (${epicKeys.join(",")}) ORDER BY rank ASC`;
-    const childIssues = await this._searchAll(baseUrl, email, token, childrenJql, output);
-    output.appendLine(`  Children fetched: ${childIssues.length}`);
+    if (epicKeys.length > 0) {
+      const childrenJql = `"Epic Link" in (${epicKeys.join(",")}) OR parent in (${epicKeys.join(",")}) ORDER BY rank ASC`;
+      childIssues = await this._searchAll(baseUrl, email, token, childrenJql, output);
+      output.appendLine(`  Children fetched: ${childIssues.length}`);
+    }
 
     // Group children by parent epic
     const childrenByEpic = new Map<string, JiraIssue[]>();
@@ -68,36 +70,54 @@ export class JiraClient implements vscode.Disposable {
       }
     }
 
-    // Step 3: Build EpicData[]
-    return epicIssues.map((epic) => {
+    // Build EpicData[]
+    const epics: EpicData[] = epicIssues.map((epic) => {
       const children = childrenByEpic.get(epic.key) ?? [];
       const statusName = epic.fields.status.name;
-
-      const issues: IssueData[] = children.map((child, idx) => {
-        const childStatus = child.fields.status.name;
-        return {
-          key: child.key,
-          summary: child.fields.summary,
-          type: child.fields.issuetype.name,
-          status: childStatus,
-          statusCategory: categorizeStatus(childStatus),
-          assignee: child.fields.assignee?.displayName,
-          priority: child.fields.priority?.name,
-          updated: child.fields.updated,
-          workingOrder: idx,
-          checkedCount: 0,
-          totalCount: 0,
-        };
-      });
-
       return {
         key: epic.key,
         summary: epic.fields.summary,
         status: statusName,
         statusCategory: categorizeStatus(statusName),
-        issues,
+        issues: children.map((child, idx) => this._toIssueData(child, idx)),
       };
     });
+
+    // Step 3: Fetch orphan issues (no epic parent)
+    let orphans: IssueData[] = [];
+    if (!customJql) {
+      const orphanParts = [
+        `project = ${project}`,
+        "issuetype != Epic",
+        '"Epic Link" is EMPTY AND issueFunction not in hasParent()',
+        statusFilter,
+      ];
+      if (scopeFilter) orphanParts.push(scopeFilter);
+      const orphanJql = orphanParts.join(" AND ") + " ORDER BY created DESC";
+      output.appendLine(`  Orphan JQL: ${orphanJql}`);
+      const orphanIssues = await this._searchAll(baseUrl, email, token, orphanJql, output);
+      output.appendLine(`  Orphans fetched: ${orphanIssues.length}`);
+      orphans = orphanIssues.map((issue, idx) => this._toIssueData(issue, idx));
+    }
+
+    return { epics, orphans };
+  }
+
+  private _toIssueData(issue: JiraIssue, idx: number): IssueData {
+    const statusName = issue.fields.status.name;
+    return {
+      key: issue.key,
+      summary: issue.fields.summary,
+      type: issue.fields.issuetype.name,
+      status: statusName,
+      statusCategory: categorizeStatus(statusName),
+      assignee: issue.fields.assignee?.displayName,
+      priority: issue.fields.priority?.name,
+      updated: issue.fields.updated,
+      workingOrder: idx,
+      checkedCount: 0,
+      totalCount: 0,
+    };
   }
 
   private async _searchAll(
@@ -195,7 +215,6 @@ export class JiraClient implements vscode.Disposable {
     ).replace(/\/$/, "");
     const email = config.get<string>(CONFIG.jiraEmail) ?? "";
 
-    // Try SecretStorage first, then env var fallback
     let token = await this._secretStorage.get(SECRET_KEY_TOKEN);
     if (!token) {
       token = process.env.ATLASSIAN_TOKEN ?? "";
