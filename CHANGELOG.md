@@ -2,6 +2,15 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.5.1
+
+### Bug Fixes
+- use standard JQL for orphan detection instead of ScriptRunner
+
+### Other
+- remove all stale local-file-scanning references
+- add README and CLAUDE.md project documentation
+
 ## 0.5.0
 
 ### Features
