@@ -89,7 +89,8 @@ export class JiraClient implements vscode.Disposable {
       const orphanParts = [
         `project = ${project}`,
         "issuetype != Epic",
-        '"Epic Link" is EMPTY AND issueFunction not in hasParent()',
+        "issuetype not in subtaskIssueTypes()",
+        '"Epic Link" is EMPTY',
         statusFilter,
       ];
       if (scopeFilter) orphanParts.push(scopeFilter);
