@@ -16,14 +16,20 @@ export class JiraClient implements vscode.Disposable {
    * Returns fully-populated EpicData[] ready for the tree.
    */
   async fetchEpics(): Promise<EpicData[]> {
+    const output = vscode.window.createOutputChannel("Epic Lens");
     const { baseUrl, email, token } = await this._getCredentials();
+    output.appendLine(`  Credentials — baseUrl: ${baseUrl ? "set" : "MISSING"}, email: ${email ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`);
     if (!baseUrl || !email || !token) return [];
 
     const config = vscode.workspace.getConfiguration();
     const customJql = config.get<string>(CONFIG.jiraJql) ?? "";
     const project = config.get<string>(CONFIG.jiraProject) ?? "";
+    output.appendLine(`  Config — project: "${project}", jql: "${customJql}"`);
 
-    if (!customJql && !project) return [];
+    if (!customJql && !project) {
+      output.appendLine("  No project or JQL configured — skipping");
+      return [];
+    }
 
     // Step 1: Fetch epics
     const epicJql = customJql || `project = ${project} AND issuetype = Epic ORDER BY created DESC`;
@@ -119,6 +125,8 @@ export class JiraClient implements vscode.Disposable {
     email: string,
     token: string
   ): Promise<Response | null> {
+    const output = vscode.window.createOutputChannel("Epic Lens");
+    output.appendLine(`  Fetch: ${url.replace(/\?.*/, "?...")}`);
     try {
       const response = await fetch(url, {
         method: "GET",
@@ -127,6 +135,8 @@ export class JiraClient implements vscode.Disposable {
           Accept: "application/json",
         },
       });
+
+      output.appendLine(`  Response: ${response.status}`);
 
       if (response.status === 401) {
         vscode.window
