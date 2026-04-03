@@ -22,15 +22,29 @@ export class JiraClient implements vscode.Disposable {
     const config = vscode.workspace.getConfiguration();
     const customJql = config.get<string>(CONFIG.jiraJql) ?? "";
     const project = config.get<string>(CONFIG.jiraProject) ?? "";
-    output.appendLine(`  Config — project: "${project}", jql: "${customJql}"`);
+    const scope = config.get<string>(CONFIG.jiraScope) ?? "mine";
+    output.appendLine(`  Config — project: "${project}", scope: "${scope}", jql: "${customJql}"`);
 
     if (!customJql && !project) {
       output.appendLine("  No project or JQL configured — skipping");
       return [];
     }
 
-    // Step 1: Fetch epics
-    const epicJql = customJql || `project = ${project} AND issuetype = Epic ORDER BY created DESC`;
+    // Step 1: Build JQL and fetch epics
+    let epicJql: string;
+    if (customJql) {
+      epicJql = customJql;
+    } else {
+      const parts = [
+        `project = ${project}`,
+        "issuetype = Epic",
+        "statusCategory != Done",
+      ];
+      if (scope === "mine") {
+        parts.push("(assignee = currentUser() OR reporter = currentUser())");
+      }
+      epicJql = parts.join(" AND ") + " ORDER BY created DESC";
+    }
     output.appendLine(`  Epic JQL: ${epicJql}`);
     const epicIssues = await this._searchAll(baseUrl, email, token, epicJql, output);
     output.appendLine(`  Epics fetched: ${epicIssues.length}`);

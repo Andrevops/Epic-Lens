@@ -49,6 +49,7 @@ export class EpicManager implements vscode.Disposable {
         if (
           e.affectsConfiguration(CONFIG.jiraProject) ||
           e.affectsConfiguration(CONFIG.jiraJql) ||
+          e.affectsConfiguration(CONFIG.jiraScope) ||
           e.affectsConfiguration(CONFIG.jiraBaseUrl) ||
           e.affectsConfiguration(CONFIG.jiraEmail)
         ) {

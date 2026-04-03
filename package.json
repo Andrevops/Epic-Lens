@@ -240,7 +240,17 @@
         "epicLens.jiraJql": {
           "type": "string",
           "default": "",
-          "description": "Custom JQL to find epics (overrides jiraProject). e.g. \"project = MYPROJ AND issuetype = Epic AND status != Done\""
+          "description": "Custom JQL to find epics (overrides jiraProject and jiraScope). e.g. \"project = MYPROJ AND issuetype = Epic AND status != Done\""
+        },
+        "epicLens.jiraScope": {
+          "type": "string",
+          "default": "mine",
+          "enum": ["mine", "all"],
+          "enumDescriptions": [
+            "Only epics where you are the assignee or reporter",
+            "All epics in the project"
+          ],
+          "description": "Which epics to fetch — yours only or all in the project"
         },
         "epicLens.hideDoneIssues": {
           "type": "boolean",

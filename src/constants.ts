@@ -21,9 +21,9 @@ export const CONFIG = {
   jiraEmail: "epicLens.jiraEmail",
   jiraProject: "epicLens.jiraProject",
   jiraJql: "epicLens.jiraJql",
+  jiraScope: "epicLens.jiraScope",
   hideDoneIssues: "epicLens.hideDoneIssues",
   scanOnStartup: "epicLens.scanOnStartup",
-  showRepoGrouping: "epicLens.showRepoGrouping",
 } as const;
 
 export const CTX = {
