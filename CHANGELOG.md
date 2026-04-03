@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.4.0
+
+### Features
+- add scope filter (mine/all) and exclude done epics by default
+
 ## 0.3.0
 
 ### Features
