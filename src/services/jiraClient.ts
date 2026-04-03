@@ -90,12 +90,15 @@ export class JiraClient implements vscode.Disposable {
     jql: string
   ): Promise<JiraIssue[]> {
     const all: JiraIssue[] = [];
-    let startAt = 0;
     const maxResults = 100;
     const fields = "summary,status,issuetype,assignee,priority,updated,parent";
+    let nextPageToken: string | undefined;
 
     while (true) {
-      const url = `${baseUrl}/rest/api/3/search?jql=${encodeURIComponent(jql)}&fields=${fields}&maxResults=${maxResults}&startAt=${startAt}`;
+      let url = `${baseUrl}/rest/api/3/search/jql?jql=${encodeURIComponent(jql)}&fields=${fields}&maxResults=${maxResults}`;
+      if (nextPageToken) {
+        url += `&nextPageToken=${encodeURIComponent(nextPageToken)}`;
+      }
 
       const response = await this._fetch(url, email, token);
       if (!response) break;
@@ -103,8 +106,9 @@ export class JiraClient implements vscode.Disposable {
       const data = (await response.json()) as JiraSearchResponse;
       all.push(...data.issues);
 
-      if (all.length >= data.total || data.issues.length === 0) break;
-      startAt += data.issues.length;
+      if (data.isLast || data.issues.length === 0) break;
+      nextPageToken = data.nextPageToken;
+      if (!nextPageToken) break;
     }
 
     return all;

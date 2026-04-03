@@ -32,11 +32,11 @@ export interface IssueData {
   totalCount: number;
 }
 
-/** Jira REST API search response */
+/** Jira REST API search/jql response */
 export interface JiraSearchResponse {
   issues: JiraIssue[];
-  total: number;
-  maxResults: number;
+  nextPageToken?: string;
+  isLast?: boolean;
 }
 
 export interface JiraIssue {
