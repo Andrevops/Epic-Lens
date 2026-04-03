@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.5.0
+
+### Features
+- show standalone issues (no epic) alongside epics in tree
+
 ## 0.4.0
 
 ### Features
