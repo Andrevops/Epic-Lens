@@ -48,6 +48,10 @@
         {
           "id": "epicLens.epics",
           "name": "Epics"
+        },
+        {
+          "id": "epicLens.mergeRequests",
+          "name": "Merge Requests"
         }
       ]
     },
@@ -56,6 +60,11 @@
         "view": "epicLens.epics",
         "contents": "No epics found.\n[Fetch from Jira](command:epicLens.scan)\n\nConfigure your Jira project in settings.",
         "when": "!epicLens.hasEpics"
+      },
+      {
+        "view": "epicLens.mergeRequests",
+        "contents": "No merge requests found.\n[Fetch from GitLab](command:epicLens.fetchMRs)\n\n[Configure GitLab](command:epicLens.configureGitlab)",
+        "when": "!epicLens.hasMRs"
       }
     ],
     "commands": [
@@ -118,6 +127,36 @@
         "title": "Configure Jira Credentials",
         "category": "Epic Lens",
         "icon": "$(key)"
+      },
+      {
+        "command": "epicLens.fetchMRs",
+        "title": "Fetch Merge Requests from GitLab",
+        "category": "Epic Lens",
+        "icon": "$(search)"
+      },
+      {
+        "command": "epicLens.refreshMRs",
+        "title": "Refresh Merge Requests",
+        "category": "Epic Lens",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "epicLens.openMR",
+        "title": "Open in GitLab",
+        "category": "Epic Lens",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "epicLens.copyMRUrl",
+        "title": "Copy MR URL",
+        "category": "Epic Lens",
+        "icon": "$(copy)"
+      },
+      {
+        "command": "epicLens.configureGitlab",
+        "title": "Configure GitLab Credentials",
+        "category": "Epic Lens",
+        "icon": "$(key)"
       }
     ],
     "keybindings": [
@@ -155,6 +194,11 @@
         "command": "epicLens.clearFilters",
         "key": "alt+e c",
         "mac": "alt+e c"
+      },
+      {
+        "command": "epicLens.fetchMRs",
+        "key": "alt+e m",
+        "mac": "alt+e m"
       }
     ],
     "menus": {
@@ -193,6 +237,16 @@
           "command": "epicLens.clearFilters",
           "when": "view == epicLens.epics && epicLens.hasFilters",
           "group": "filter@3"
+        },
+        {
+          "command": "epicLens.fetchMRs",
+          "when": "view == epicLens.mergeRequests",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.refreshMRs",
+          "when": "view == epicLens.mergeRequests",
+          "group": "navigation@2"
         }
       ],
       "view/item/context": [
@@ -204,6 +258,16 @@
         {
           "command": "epicLens.copyKey",
           "when": "view == epicLens.epics && viewItem =~ /issue|epic/",
+          "group": "util@1"
+        },
+        {
+          "command": "epicLens.openMR",
+          "when": "view == epicLens.mergeRequests && viewItem == mergeRequest",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.copyMRUrl",
+          "when": "view == epicLens.mergeRequests && viewItem == mergeRequest",
           "group": "util@1"
         }
       ]
@@ -252,7 +316,12 @@
         "epicLens.scanOnStartup": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically fetch epics from Jira on activation"
+          "description": "Automatically fetch epics from Jira and merge requests from GitLab on activation"
+        },
+        "epicLens.gitlabHost": {
+          "type": "string",
+          "default": "https://gitlab.com",
+          "description": "GitLab instance URL (e.g. https://gitlab.com or your self-hosted instance)"
         }
       }
     }

@@ -1,13 +1,16 @@
 import * as vscode from "vscode";
-import { VIEW_EPICS, CONFIG, CTX } from "./constants";
+import { VIEW_EPICS, VIEW_MRS, CONFIG, CTX } from "./constants";
 import { EpicManager } from "./services/epicManager";
 import { EpicTreeProvider } from "./providers/epicTreeProvider";
+import { MrTreeProvider } from "./providers/mrTreeProvider";
 import { DashboardPanel } from "./views/dashboardPanel";
 import { registerScanCommands } from "./commands/scan";
 import { registerFilterCommands } from "./commands/filter";
 import { registerOpenCommands } from "./commands/open";
 import { registerCredentialCommands } from "./commands/credentials";
+import { registerGitlabCommands } from "./commands/gitlab";
 import { JiraClient } from "./services/jiraClient";
+import { GitLabClient } from "./services/gitlabClient";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Epic Lens");
@@ -16,12 +19,19 @@ export function activate(context: vscode.ExtensionContext): void {
   // Services
   const jiraClient = new JiraClient(context.secrets);
   const manager = new EpicManager(context, jiraClient);
+  const gitlabClient = new GitLabClient(context.secrets);
 
-  // TreeView
+  // Jira TreeView
   const treeProvider = new EpicTreeProvider(manager);
   const treeView = vscode.window.createTreeView(VIEW_EPICS, {
     treeDataProvider: treeProvider,
     showCollapseAll: true,
+  });
+
+  // GitLab MR TreeView
+  const mrTreeProvider = new MrTreeProvider(gitlabClient, output);
+  const mrTreeView = vscode.window.createTreeView(VIEW_MRS, {
+    treeDataProvider: mrTreeProvider,
   });
 
   // Status bar
@@ -48,9 +58,12 @@ export function activate(context: vscode.ExtensionContext): void {
   registerFilterCommands(context, manager);
   registerOpenCommands(context);
   registerCredentialCommands(context, jiraClient);
+  registerGitlabCommands(context, gitlabClient, mrTreeProvider);
 
   // Subscriptions
-  context.subscriptions.push(manager, jiraClient, treeView, output);
+  context.subscriptions.push(
+    manager, jiraClient, gitlabClient, treeView, mrTreeView, output
+  );
 
   // Auto-fetch on startup
   const scanOnStartup =
@@ -61,6 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
   if (scanOnStartup) {
     // Small delay to let workspace fully load
     setTimeout(() => manager.scan(), 1500);
+    setTimeout(() => mrTreeProvider.fetch(), 2000);
   }
 
   output.appendLine("Epic Lens activated");
