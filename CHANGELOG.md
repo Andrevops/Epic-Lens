@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.6.1
+
+### Bug Fixes
+- handle OAuth2 glab config and show clear token-missing message
+
 ## 0.6.0
 
 ### Features
