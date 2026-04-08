@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.6.0
+
+### Features
+- add GitLab merge request tracking in sidebar
+
 ## 0.5.2
 
 ### Bug Fixes
