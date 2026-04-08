@@ -1,7 +1,7 @@
 {
   "name": "epic-lens",
   "displayName": "Epic Lens",
-  "description": "Jira Epic status visualizer — fetch epics and issues from Jira, track progress with a sidebar tree and dashboard",
+  "description": "Jira Epic status visualizer and GitLab merge request tracker — fetch epics, issues, and MRs in a sidebar tree and dashboard",
   "version": "0.6.1",
   "publisher": "andrevops-com",
   "license": "MIT",
@@ -13,6 +13,8 @@
   "keywords": [
     "jira",
     "epic",
+    "gitlab",
+    "merge-request",
     "status",
     "kanban",
     "tracker"
@@ -30,6 +32,7 @@
   },
   "activationEvents": [
     "onView:epicLens.epics",
+    "onView:epicLens.mergeRequests",
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",

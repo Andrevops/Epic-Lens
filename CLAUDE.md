@@ -38,7 +38,7 @@ A VS Code extension that fetches Jira epics/issues and GitLab merge requests via
 - Jira API v3 `search/jql` endpoint (the old `/search` was removed by Atlassian)
 - Cursor-based pagination with `nextPageToken` (not offset-based `startAt`)
 - Jira token auth: SecretStorage (OS keychain) with `ATLASSIAN_TOKEN` env var fallback
-- GitLab token auth: SecretStorage → `GITLAB_TOKEN` env var → glab CLI config fallback
+- GitLab token auth: SecretStorage → `GITLAB_TOKEN` env var → glab CLI config fallback (PAT only, not OAuth2)
 - GitLab uses `PRIVATE-TOKEN` header (not Bearer) per GitLab API v4 convention
 - Default scope is "mine" (assignee OR reporter = currentUser())
 - Done epics excluded from default JQL (`statusCategory != Done`)
