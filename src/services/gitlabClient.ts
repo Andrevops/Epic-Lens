@@ -28,7 +28,19 @@ export class GitLabClient implements vscode.Disposable {
     output.appendLine(
       `  GitLab credentials — host: ${host ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`
     );
-    if (!host || !token) return [];
+    if (!host || !token) {
+      vscode.window
+        .showWarningMessage(
+          "Epic Lens: GitLab token not found. You need a Personal Access Token with read_api scope.",
+          "Configure"
+        )
+        .then((choice) => {
+          if (choice === "Configure") {
+            vscode.commands.executeCommand("epicLens.configureGitlab");
+          }
+        });
+      return [];
+    }
 
     const url = `${host}/api/v4/merge_requests?scope=created_by_me&state=opened&per_page=100`;
     const response = await this._fetch(url, token, output);
@@ -180,7 +192,11 @@ export class GitLabClient implements vscode.Disposable {
   }
 
   /**
-   * Attempt to read the token from glab CLI config (~/.config/glab-cli/config.yml).
+   * Attempt to read a Personal Access Token from glab CLI config
+   * (~/.config/glab-cli/config.yml).
+   *
+   * Only returns the token if it looks like a real PAT (not an OAuth2 null placeholder).
+   * glab OAuth2 sessions store `token: !!null <hash>` which isn't usable as a PRIVATE-TOKEN.
    */
   private _readGlabToken(host: string): string | undefined {
     try {
@@ -207,7 +223,10 @@ export class GitLabClient implements vscode.Disposable {
         if (inHostBlock) {
           const tokenMatch = line.match(/^\s+token:\s*(.+)/);
           if (tokenMatch) {
-            return tokenMatch[1].trim();
+            const raw = tokenMatch[1].trim();
+            // Skip OAuth2 null tokens (!!null <hash>) — these don't work with PRIVATE-TOKEN
+            if (raw.startsWith("!!null")) return undefined;
+            return raw;
           }
           // If we hit a non-indented line, we've left the host block
           if (line.length > 0 && !line.startsWith(" ") && !line.startsWith("\t")) {

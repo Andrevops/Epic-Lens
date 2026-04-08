@@ -24,19 +24,24 @@ Jira Epic status visualizer and GitLab merge request tracker for VS Code. Fetch 
 
 ### GitLab Setup
 
-The extension shows your open merge requests in a dedicated sidebar section. Authentication is resolved automatically in this order:
+The extension shows your open merge requests in a dedicated sidebar section. A **GitLab Personal Access Token** with `read_api` scope is required.
+
+Authentication is resolved in this order:
 
 1. **VS Code SecretStorage** (OS keychain) — set via **Epic Lens: Configure GitLab Credentials**
 2. **`GITLAB_TOKEN` environment variable**
-3. **`glab` CLI config** (`~/.config/glab-cli/config.yml`) — if you've already authenticated with `glab auth login`, it just works
+3. **`glab` CLI config** (`~/.config/glab-cli/config.yml`) — only if authenticated with a PAT (not OAuth2)
 
-For most users who already have `glab` installed and authenticated, **no additional configuration is needed**.
+> **Note:** If you used `glab auth login` with browser-based OAuth2 (the default), the stored token won't work with this extension. You need a Personal Access Token.
 
-#### Manual setup (if needed)
+#### Setup
 
-1. Run **Epic Lens: Configure GitLab Credentials** from the command palette
-2. Enter your GitLab host URL (defaults to `https://gitlab.com`)
-3. Enter a [Personal Access Token](https://gitlab.com/-/user_settings/personal_access_tokens) with `read_api` scope
+1. [Create a Personal Access Token](https://gitlab.com/-/user_settings/personal_access_tokens) with `read_api` scope
+2. Run **Epic Lens: Configure GitLab Credentials** from the command palette (`Ctrl+Shift+P`)
+3. Enter your GitLab host URL (defaults to `https://gitlab.com`)
+4. Paste your token (stored securely in the OS keychain)
+
+Alternatively, set the `GITLAB_TOKEN` environment variable.
 
 ### Generating a Jira API Token
 
@@ -75,7 +80,7 @@ For most users who already have `glab` installed and authenticated, **no additio
 
 1. VS Code SecretStorage (OS keychain) — set via **Configure GitLab Credentials**
 2. `GITLAB_TOKEN` environment variable
-3. `glab` CLI config file (`~/.config/glab-cli/config.yml`)
+3. `glab` CLI config file (`~/.config/glab-cli/config.yml`) — PAT-based auth only, not OAuth2
 
 ## Keyboard Shortcuts
 
