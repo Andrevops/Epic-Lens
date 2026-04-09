@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  id-token: write
+  attestations: write
 
 jobs:
   release:
@@ -18,7 +20,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
 
       - name: Install extension dependencies
@@ -30,8 +32,45 @@ jobs:
       - name: Build extension
         run: npm run build
 
-      - name: Package .vsix
+      - name: Package .vsix (Marketplace — andrevops-com)
         run: npx @vscode/vsce package --no-dependencies
+
+      - name: Package .vsix (Open VSX — andrevops)
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json','utf-8'));
+            pkg.publisher = 'andrevops';
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          "
+          npx @vscode/vsce package --no-dependencies -o "epic-lens-${VERSION}-openvsx.vsix"
+          git checkout package.json
+
+      - name: Generate checksums
+        run: |
+          sha256sum *.vsix > checksums.txt
+          cat checksums.txt
+
+      - name: Sign checksums
+        env:
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if [ -z "$SIGNING_KEY" ]; then
+            echo "SIGNING_KEY not set, skipping signing"
+            exit 0
+          fi
+          echo "$SIGNING_KEY" | base64 -d > /tmp/signing.pem
+          openssl pkey -in /tmp/signing.pem -noout
+          openssl pkeyutl -sign -inkey /tmp/signing.pem -rawin -in checksums.txt \
+            | xxd -p -c 256 | tr -d '\n' > checksums.txt.sig
+          rm /tmp/signing.pem
+          echo "signature: $(cat checksums.txt.sig)"
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: "*.vsix"
 
       - name: Generate changelog
         id: changelog
@@ -55,36 +94,54 @@ jobs:
             FIXES=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -E "^fix" | sed 's/^fix[^:]*: //' || true)
             OTHERS=$(git log "$RANGE" --pretty=format:"%s" --no-merges | grep -vE "^(feat|fix|chore\(release\))" | head -10 || true)
 
+            cap() { echo "$1" | sed 's/^./\U&/'; }
+
             if [ -n "$FEATS" ]; then
               echo "### Features"
-              echo "$FEATS" | while IFS= read -r line; do echo "- $line"; done
+              echo "$FEATS" | while IFS= read -r line; do echo "- $(cap "$line")"; done
               echo ""
             fi
 
             if [ -n "$FIXES" ]; then
               echo "### Bug Fixes"
-              echo "$FIXES" | while IFS= read -r line; do echo "- $line"; done
+              echo "$FIXES" | while IFS= read -r line; do echo "- $(cap "$line")"; done
               echo ""
             fi
 
             if [ -n "$OTHERS" ]; then
               echo "### Other"
-              echo "$OTHERS" | while IFS= read -r line; do echo "- $line"; done
+              echo "$OTHERS" | while IFS= read -r line; do echo "- $(cap "$line")"; done
               echo ""
             fi
 
             echo "---"
             echo "**Full Changelog**: [\`${PREV_TAG:-initial}..${CURRENT_TAG}\`](https://github.com/${{ github.repository }}/compare/${PREV_TAG:-initial}...${CURRENT_TAG})"
+            echo ""
+            echo "## Verify"
+            echo ""
+            echo '```sh'
+            echo "# Verify build provenance"
+            echo "gh attestation verify epic-lens-*.vsix --repo ${{ github.repository }}"
+            echo '```'
           } > RELEASE_NOTES.md
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "*.vsix"
+          files: |
+            *.vsix
+            checksums.txt
+            checksums.txt.sig
           body_path: RELEASE_NOTES.md
 
-      # Uncomment when VSCE_PAT is available to auto-publish to marketplace
+      # Uncomment when VSCE_PAT secret is configured
       # - name: Publish to VS Code Marketplace
       #   run: npx @vscode/vsce publish --no-dependencies
       #   env:
       #     VSCE_PAT: ${{ secrets.VSCE_PAT }}
+
+      - name: Publish to Open VSX
+        if: ${{ secrets.OVSX_PAT != '' }}
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          npx ovsx publish "epic-lens-${VERSION}-openvsx.vsix" -p ${{ secrets.OVSX_PAT }}
