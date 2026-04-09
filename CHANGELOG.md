@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.11.1
+
+### Other
+- reframe Epic Lens around AI-accelerated development visibility
+
 ## 0.11.0
 
 ### Features
