@@ -44,8 +44,11 @@ export function activate(context: vscode.ExtensionContext): void {
   statusBar.command = "epicLens.openDashboard";
   context.subscriptions.push(statusBar);
 
+  const refreshStatusBar = () =>
+    updateStatusBar(manager, mrTreeProvider, statusBar);
+
   manager.onDidChangeEpics(() => {
-    updateStatusBar(manager, statusBar);
+    refreshStatusBar();
     // Badge: total open issues (epic children + orphans)
     const allIssues = [
       ...manager.epics.flatMap((e) => e.issues),
@@ -60,6 +63,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   mrTreeProvider.onDidChangeTreeData(() => {
+    refreshStatusBar();
     const mrCount = mrTreeProvider.mrs.length;
     mrTreeView.badge = mrCount > 0
       ? { value: mrCount, tooltip: `${mrCount} open MR/PR${mrCount !== 1 ? "s" : ""}` }
@@ -102,11 +106,14 @@ export function activate(context: vscode.ExtensionContext): void {
 
 function updateStatusBar(
   manager: EpicManager,
+  mrTreeProvider: MrTreeProvider,
   statusBar: vscode.StatusBarItem
 ): void {
   const epics = manager.epics;
   const orphans = manager.orphans;
-  if (epics.length === 0 && orphans.length === 0) {
+  const mrCount = mrTreeProvider.mrs.length;
+
+  if (epics.length === 0 && orphans.length === 0 && mrCount === 0) {
     statusBar.hide();
     return;
   }
@@ -123,15 +130,38 @@ function updateStatusBar(
     (i) => i.statusCategory === "blocked"
   ).length;
 
-  const parts: string[] = [`$(telescope) ${epics.length} epics`];
-  if (total > 0) {
-    parts.push(`${done}/${total} done`);
-    if (inProgress > 0) parts.push(`${inProgress} active`);
-    if (blocked > 0) parts.push(`${blocked} blocked`);
+  const parts: string[] = [];
+
+  if (epics.length > 0 || orphans.length > 0) {
+    parts.push(`$(telescope) ${epics.length} epics`);
+    if (total > 0) {
+      parts.push(`${done}/${total} done`);
+      if (inProgress > 0) parts.push(`${inProgress} active`);
+      if (blocked > 0) parts.push(`${blocked} blocked`);
+    }
+  }
+
+  if (mrCount > 0) {
+    parts.push(`$(git-pull-request) ${mrCount} MR/PR`);
   }
 
   statusBar.text = parts.join(" · ");
-  statusBar.tooltip = `Epic Lens: Click to open dashboard\n${epics.map((e) => `  ${e.key}: ${e.summary}`).join("\n")}`;
+
+  const tooltipLines = ["Epic Lens: Click to open dashboard"];
+  if (epics.length > 0) {
+    tooltipLines.push(
+      "",
+      "Epics:",
+      ...epics.map((e) => `  ${e.key}: ${e.summary}`)
+    );
+  }
+  if (mrCount > 0) {
+    tooltipLines.push(
+      "",
+      `Open MRs/PRs: ${mrCount}`
+    );
+  }
+  statusBar.tooltip = tooltipLines.join("\n");
   statusBar.show();
 }
 
