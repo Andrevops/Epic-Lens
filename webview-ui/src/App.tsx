@@ -27,6 +27,26 @@ interface FilterState {
   hideDone: boolean;
 }
 
+interface MergeRequestData {
+  provider: "gitlab" | "github";
+  role: "author" | "reviewer";
+  iid: number;
+  title: string;
+  webUrl: string;
+  sourceBranch: string;
+  targetBranch: string;
+  draft: boolean;
+  hasConflicts: boolean;
+  createdAt: string;
+  updatedAt: string;
+  projectPath: string;
+  projectName: string;
+  pipelineStatus?: string;
+  approvedBy: string[];
+  approvalsRequired: number;
+  status: string;
+}
+
 const STATUS_EMOJI: Record<string, string> = {
   done: "\u2705",
   in_progress: "\uD83D\uDD04",
@@ -57,8 +77,45 @@ const STATUS_ORDER = [
   "rejected",
 ];
 
+const MR_STATUS_EMOJI: Record<string, string> = {
+  ready: "\u2705",
+  approved: "\uD83D\uDC4D",
+  needs_review: "\uD83D\uDC40",
+  draft: "\u270F\uFE0F",
+  ci_failed: "\u274C",
+  ci_running: "\uD83D\uDD04",
+  has_conflicts: "\u26A0\uFE0F",
+  changes_requested: "\uD83D\uDD03",
+  discussions_open: "\uD83D\uDCAC",
+};
+
+const MR_STATUS_LABELS: Record<string, string> = {
+  ready: "Ready to merge",
+  approved: "Approved",
+  needs_review: "Needs review",
+  draft: "Draft",
+  ci_failed: "Pipeline failed",
+  ci_running: "Pipeline running",
+  has_conflicts: "Has conflicts",
+  changes_requested: "Changes requested",
+  discussions_open: "Unresolved discussions",
+};
+
+const MR_STATUS_COLORS: Record<string, string> = {
+  ready: "done",
+  approved: "in_progress",
+  needs_review: "review",
+  draft: "rejected",
+  ci_failed: "blocked",
+  ci_running: "in_progress",
+  has_conflicts: "blocked",
+  changes_requested: "qa",
+  discussions_open: "qa",
+};
+
 export function App() {
   const [epics, setEpics] = useState<EpicData[]>([]);
+  const [mrs, setMrs] = useState<MergeRequestData[]>([]);
   const [filters, setFilters] = useState<FilterState>({
     statusFilter: "all",
     typeFilter: "all",
@@ -71,6 +128,7 @@ export function App() {
       const msg = event.data;
       if (msg.type === "setData") {
         setEpics(msg.epics);
+        setMrs(msg.mrs || []);
         setFilters(msg.filters);
       } else if (msg.type === "filtersChanged") {
         setFilters(msg.filters);
@@ -173,6 +231,8 @@ export function App() {
       ) : (
         <ListView epics={epics} />
       )}
+
+      {mrs.length > 0 && <MrSection mrs={mrs} />}
     </>
   );
 }
@@ -292,6 +352,91 @@ function IssueCard({ issue }: { issue: IssueData }) {
       <div className="card-meta">
         <span>{issue.status}</span>
         {issue.assignee && <span>{issue.assignee}</span>}
+      </div>
+    </div>
+  );
+}
+
+function MrSection({ mrs }: { mrs: MergeRequestData[] }) {
+  // Group by project
+  const byProject = new Map<string, MergeRequestData[]>();
+  for (const mr of mrs) {
+    const key = `${mr.provider}:${mr.projectPath}`;
+    const list = byProject.get(key) ?? [];
+    list.push(mr);
+    byProject.set(key, list);
+  }
+
+  // Stats
+  const byStatus = new Map<string, number>();
+  for (const mr of mrs) {
+    byStatus.set(mr.status, (byStatus.get(mr.status) ?? 0) + 1);
+  }
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <div className="toolbar">
+        <h1>{"\uD83D\uDD00"} Merge Requests / Pull Requests ({mrs.length})</h1>
+      </div>
+
+      <div className="stats">
+        {[...byStatus.entries()].map(([status, count]) => (
+          <StatCard
+            key={status}
+            value={`${MR_STATUS_EMOJI[status] || ""} ${count}`}
+            label={MR_STATUS_LABELS[status] || status}
+          />
+        ))}
+      </div>
+
+      {[...byProject.entries()].map(([key, projectMrs]) => {
+        const first = projectMrs[0];
+        const icon = first.provider === "github" ? "\uD83D\uDC19" : "\uD83E\uDD8A";
+        return (
+          <div className="epic-section" key={key}>
+            <div className="epic-header">
+              <h2>
+                {icon} {first.projectName} ({projectMrs.length})
+              </h2>
+            </div>
+            {projectMrs.map((mr) => (
+              <MrCard key={mr.webUrl} mr={mr} />
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MrCard({ mr }: { mr: MergeRequestData }) {
+  const colorClass = MR_STATUS_COLORS[mr.status] || "backlog";
+  const emoji = MR_STATUS_EMOJI[mr.status] || "\uD83D\uDCCB";
+  const prefix = mr.provider === "github" ? "#" : "!";
+  const providerIcon = mr.provider === "github" ? "\uD83D\uDC19" : "\uD83E\uDD8A";
+  const ageDays = Math.floor(
+    (Date.now() - new Date(mr.createdAt).getTime()) / 86_400_000
+  );
+  const stale = ageDays > 7 ? ` \u23F0 ${ageDays}d` : "";
+
+  return (
+    <div
+      className={`card ${colorClass}`}
+      onClick={() => vscode.postMessage({ type: "openMR", url: mr.webUrl })}
+    >
+      <div className="card-key">
+        {emoji} {providerIcon} {prefix}
+        {mr.iid}
+        {mr.role === "reviewer" ? " \uD83D\uDCCB reviewer" : ""}
+        {stale}
+      </div>
+      <div className="card-title">{mr.title}</div>
+      <div className="card-meta">
+        <span>
+          {mr.sourceBranch} → {mr.targetBranch}
+        </span>
+        {mr.approvedBy.length > 0 && <span>{"\uD83D\uDC4D"} {mr.approvedBy.length}</span>}
+        {mr.pipelineStatus && <span>CI: {mr.pipelineStatus}</span>}
       </div>
     </div>
   );
