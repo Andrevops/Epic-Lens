@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.11.0
+
+### Features
+- new extension icon — purple lens with lightning bolt
+
 ## 0.10.4
 
 ### Bug Fixes
