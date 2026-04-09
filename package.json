@@ -2,7 +2,7 @@
   "name": "epic-lens",
   "displayName": "Epic Lens",
   "description": "Jira Epic status visualizer and GitLab merge request tracker — fetch epics, issues, and MRs in a sidebar tree and dashboard",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "publisher": "andrevops-com",
   "license": "MIT",
   "icon": "resources/icons/icon.png",

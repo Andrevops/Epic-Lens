@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.8.0
+
+### Features
+- show badge counts on Epics and Merge Requests view headers
+
 ## 0.7.1
 
 ### Bug Fixes
