@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.10.3
+
+### Other
+- add release signing public key for checksum verification
+
 ## 0.10.1
 
 ### Bug Fixes
