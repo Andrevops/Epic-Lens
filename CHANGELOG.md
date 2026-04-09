@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.9.0
+
+### Features
+- show both issue and MR/PR counts in status bar
+
 ## 0.8.0
 
 ### Features
