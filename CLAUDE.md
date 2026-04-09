@@ -1,7 +1,7 @@
 # Epic Lens — VS Code Extension
 
 ## What this is
-A VS Code extension that fetches Jira epics/issues, GitLab merge requests, and GitHub pull requests via their REST APIs and displays them in a sidebar tree view and interactive dashboard. All data comes from Jira, GitLab, and GitHub APIs — there is no local file scanning.
+A VS Code extension that gives developers visibility over their work when AI-assisted coding accelerates delivery. Fetches Jira epics/issues, GitLab merge requests, and GitHub pull requests via their REST APIs and displays them in a sidebar tree view and interactive dashboard. All data comes from Jira, GitLab, and GitHub APIs — there is no local file scanning.
 
 ## Architecture
 - `src/extension.ts` — Activation, service wiring, status bar

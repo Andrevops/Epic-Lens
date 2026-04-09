@@ -1,6 +1,8 @@
 # Epic Lens
 
-Jira Epic status visualizer and merge request tracker for VS Code. Fetch epics and issues from Jira, monitor your open merge requests from GitLab and pull requests from GitHub — all in one sidebar.
+**AI is changing how fast we ship code.** A feature that used to take days now lands in hours. But velocity without visibility is chaos — tickets pile up, MRs go stale overnight, and you start the next morning wondering *"what did I even ship yesterday?"*
+
+Epic Lens gives you that visibility. It pulls your Jira epics, GitLab merge requests, and GitHub pull requests into a single VS Code sidebar so you can see everything at a glance: what's in progress, what's waiting for review, what's been approved, and what's stuck. When AI helps you move fast, Epic Lens helps you stay in control.
 
 ## Features
 

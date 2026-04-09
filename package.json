@@ -1,7 +1,7 @@
 {
   "name": "epic-lens",
   "displayName": "Epic Lens",
-  "description": "Jira Epic status visualizer and GitLab merge request tracker — fetch epics, issues, and MRs in a sidebar tree and dashboard",
+  "description": "Track Jira epics, GitLab MRs, and GitHub PRs in one sidebar — stay in control when AI helps you ship fast",
   "version": "0.11.0",
   "publisher": "andrevops-com",
   "license": "MIT",
@@ -19,7 +19,9 @@
     "pull-request",
     "status",
     "kanban",
-    "tracker"
+    "tracker",
+    "ai-workflow",
+    "productivity"
   ],
   "engines": {
     "vscode": "^1.95.0"
