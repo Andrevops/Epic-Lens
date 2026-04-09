@@ -46,6 +46,24 @@ export function activate(context: vscode.ExtensionContext): void {
 
   manager.onDidChangeEpics(() => {
     updateStatusBar(manager, statusBar);
+    // Badge: total open issues (epic children + orphans)
+    const allIssues = [
+      ...manager.epics.flatMap((e) => e.issues),
+      ...manager.orphans,
+    ];
+    const openCount = allIssues.filter(
+      (i) => i.statusCategory !== "done"
+    ).length;
+    treeView.badge = openCount > 0
+      ? { value: openCount, tooltip: `${openCount} open issue${openCount !== 1 ? "s" : ""}` }
+      : undefined;
+  });
+
+  mrTreeProvider.onDidChangeTreeData(() => {
+    const mrCount = mrTreeProvider.mrs.length;
+    mrTreeView.badge = mrCount > 0
+      ? { value: mrCount, tooltip: `${mrCount} open MR/PR${mrCount !== 1 ? "s" : ""}` }
+      : undefined;
   });
 
   // Dashboard command
