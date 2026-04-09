@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.6.2
+
+### Other
+- update package metadata and docs for GitLab MR integration
+
 ## 0.6.1
 
 ### Bug Fixes
