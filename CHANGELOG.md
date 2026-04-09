@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.10.4
+
+### Bug Fixes
+- use env context instead of secrets in step-level if condition
+
 ## 0.10.3
 
 ### Other
