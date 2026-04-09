@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.7.1
+
+### Bug Fixes
+- silently skip unconfigured providers instead of showing warnings
+
 ## 0.7.0
 
 ### Features
