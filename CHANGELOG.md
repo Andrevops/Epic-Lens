@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.7.0
+
+### Features
+- add GitHub PR support and provider cycling (Both/GitLab/GitHub)
+
 ## 0.6.2
 
 ### Other
