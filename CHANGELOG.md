@@ -2,6 +2,14 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.10.0
+
+### Features
+- add auto-refresh, stale MR flags, reviewer view, notifications, Jira-MR linking, and MR dashboard
+
+### Other
+- document auto-refresh, stale MRs, reviewer view, notifications, Jira-MR linking, and MR dashboard
+
 ## 0.9.0
 
 ### Features
