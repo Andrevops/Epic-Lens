@@ -14,7 +14,9 @@
     "jira",
     "epic",
     "gitlab",
+    "github",
     "merge-request",
+    "pull-request",
     "status",
     "kanban",
     "tracker"
@@ -66,7 +68,7 @@
       },
       {
         "view": "epicLens.mergeRequests",
-        "contents": "No merge requests found.\n[Fetch from GitLab](command:epicLens.fetchMRs)\n\n[Configure GitLab](command:epicLens.configureGitlab)",
+        "contents": "No merge requests found.\n[Fetch MRs / PRs](command:epicLens.fetchMRs)\n\n[Configure GitLab](command:epicLens.configureGitlab) · [Configure GitHub](command:epicLens.configureGithub)",
         "when": "!epicLens.hasMRs"
       }
     ],
@@ -133,7 +135,7 @@
       },
       {
         "command": "epicLens.fetchMRs",
-        "title": "Fetch Merge Requests from GitLab",
+        "title": "Fetch Merge Requests",
         "category": "Epic Lens",
         "icon": "$(search)"
       },
@@ -144,20 +146,32 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "epicLens.cycleMRProvider",
+        "title": "Cycle Provider: Both / GitLab / GitHub",
+        "category": "Epic Lens",
+        "icon": "$(layers)"
+      },
+      {
         "command": "epicLens.openMR",
-        "title": "Open in GitLab",
+        "title": "Open in Browser",
         "category": "Epic Lens",
         "icon": "$(link-external)"
       },
       {
         "command": "epicLens.copyMRUrl",
-        "title": "Copy MR URL",
+        "title": "Copy MR/PR URL",
         "category": "Epic Lens",
         "icon": "$(copy)"
       },
       {
         "command": "epicLens.configureGitlab",
         "title": "Configure GitLab Credentials",
+        "category": "Epic Lens",
+        "icon": "$(key)"
+      },
+      {
+        "command": "epicLens.configureGithub",
+        "title": "Configure GitHub Credentials",
         "category": "Epic Lens",
         "icon": "$(key)"
       }
@@ -250,6 +264,11 @@
           "command": "epicLens.refreshMRs",
           "when": "view == epicLens.mergeRequests",
           "group": "navigation@2"
+        },
+        {
+          "command": "epicLens.cycleMRProvider",
+          "when": "view == epicLens.mergeRequests",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -325,6 +344,11 @@
           "type": "string",
           "default": "https://gitlab.com",
           "description": "GitLab instance URL (e.g. https://gitlab.com or your self-hosted instance)"
+        },
+        "epicLens.githubHost": {
+          "type": "string",
+          "default": "https://api.github.com",
+          "description": "GitHub API URL (default for github.com, or your GitHub Enterprise API endpoint)"
         }
       }
     }

@@ -8,9 +8,10 @@ import { registerScanCommands } from "./commands/scan";
 import { registerFilterCommands } from "./commands/filter";
 import { registerOpenCommands } from "./commands/open";
 import { registerCredentialCommands } from "./commands/credentials";
-import { registerGitlabCommands } from "./commands/gitlab";
+import { registerMrCommands } from "./commands/gitlab";
 import { JiraClient } from "./services/jiraClient";
 import { GitLabClient } from "./services/gitlabClient";
+import { GitHubClient } from "./services/githubClient";
 
 export function activate(context: vscode.ExtensionContext): void {
   const output = vscode.window.createOutputChannel("Epic Lens");
@@ -20,6 +21,7 @@ export function activate(context: vscode.ExtensionContext): void {
   const jiraClient = new JiraClient(context.secrets);
   const manager = new EpicManager(context, jiraClient);
   const gitlabClient = new GitLabClient(context.secrets);
+  const githubClient = new GitHubClient(context.secrets);
 
   // Jira TreeView
   const treeProvider = new EpicTreeProvider(manager);
@@ -29,7 +31,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   // GitLab MR TreeView
-  const mrTreeProvider = new MrTreeProvider(gitlabClient, output);
+  const mrTreeProvider = new MrTreeProvider(gitlabClient, githubClient, output);
   const mrTreeView = vscode.window.createTreeView(VIEW_MRS, {
     treeDataProvider: mrTreeProvider,
   });
@@ -58,11 +60,11 @@ export function activate(context: vscode.ExtensionContext): void {
   registerFilterCommands(context, manager);
   registerOpenCommands(context);
   registerCredentialCommands(context, jiraClient);
-  registerGitlabCommands(context, gitlabClient, mrTreeProvider);
+  registerMrCommands(context, gitlabClient, githubClient, mrTreeProvider);
 
   // Subscriptions
   context.subscriptions.push(
-    manager, jiraClient, gitlabClient, treeView, mrTreeView, output
+    manager, jiraClient, gitlabClient, githubClient, treeView, mrTreeView, output
   );
 
   // Auto-fetch on startup

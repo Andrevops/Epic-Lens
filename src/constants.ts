@@ -14,12 +14,14 @@ export const CMD = {
   copyKey: "epicLens.copyKey",
   configureCredentials: "epicLens.configureCredentials",
   openDashboard: "epicLens.openDashboard",
-  // GitLab MR commands
+  // MR/PR commands
   fetchMRs: "epicLens.fetchMRs",
   refreshMRs: "epicLens.refreshMRs",
   openMR: "epicLens.openMR",
   copyMRUrl: "epicLens.copyMRUrl",
   configureGitlab: "epicLens.configureGitlab",
+  configureGithub: "epicLens.configureGithub",
+  cycleMRProvider: "epicLens.cycleMRProvider",
 } as const;
 
 export const CONFIG = {
@@ -32,6 +34,8 @@ export const CONFIG = {
   scanOnStartup: "epicLens.scanOnStartup",
   // GitLab
   gitlabHost: "epicLens.gitlabHost",
+  // GitHub
+  githubHost: "epicLens.githubHost",
 } as const;
 
 export const CTX = {
@@ -43,6 +47,7 @@ export const CTX = {
 
 export const SECRET_KEY_TOKEN = "epicLens.jiraToken";
 export const SECRET_KEY_GITLAB_TOKEN = "epicLens.gitlabToken";
+export const SECRET_KEY_GITHUB_TOKEN = "epicLens.githubToken";
 
 export type StatusCategory =
   | "done"
@@ -120,6 +125,7 @@ export const MR_STATUS_EMOJI: Record<MrStatusCategory, string> = {
   ci_failed: "❌",
   ci_running: "🔄",
   has_conflicts: "⚠️",
+  changes_requested: "🔃",
   discussions_open: "💬",
 };
 
@@ -131,7 +137,20 @@ export const MR_STATUS_LABELS: Record<MrStatusCategory, string> = {
   ci_failed: "Pipeline failed",
   ci_running: "Pipeline running",
   has_conflicts: "Has conflicts",
+  changes_requested: "Changes requested",
   discussions_open: "Unresolved discussions",
+};
+
+export const PROVIDER_LABELS: Record<import("./types").MrProviderFilter, string> = {
+  both: "All Providers",
+  gitlab: "GitLab Only",
+  github: "GitHub Only",
+};
+
+export const PROVIDER_ICONS: Record<import("./types").MrProviderFilter, string> = {
+  both: "$(layers)",
+  gitlab: "$(git-merge)",
+  github: "$(mark-github)",
 };
 
 export function categorizeMrStatus(

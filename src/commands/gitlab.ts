@@ -1,34 +1,36 @@
 import * as vscode from "vscode";
-import { CONFIG, CMD } from "../constants";
+import { CONFIG, CMD, PROVIDER_LABELS } from "../constants";
 import type { GitLabClient } from "../services/gitlabClient";
+import type { GitHubClient } from "../services/githubClient";
 import type { MrTreeProvider } from "../providers/mrTreeProvider";
 import type { MergeRequestData } from "../types";
 
-export function registerGitlabCommands(
+export function registerMrCommands(
   context: vscode.ExtensionContext,
   gitlabClient: GitLabClient,
+  githubClient: GitHubClient,
   mrTreeProvider: MrTreeProvider
 ): void {
-  // Fetch MRs (with progress notification)
+  // Fetch MRs/PRs (with progress notification)
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.fetchMRs, async () => {
       await vscode.window.withProgress(
         {
           location: vscode.ProgressLocation.Notification,
-          title: "Epic Lens: Fetching merge requests from GitLab...",
+          title: "Epic Lens: Fetching merge requests...",
           cancellable: false,
         },
         async () => {
           const count = await mrTreeProvider.fetch();
           vscode.window.showInformationMessage(
-            `Epic Lens: Found ${count} open merge request${count !== 1 ? "s" : ""}`
+            `Epic Lens: Found ${count} open MR/PR${count !== 1 ? "s" : ""}`
           );
         }
       );
     })
   );
 
-  // Refresh MRs (silent, no success message)
+  // Refresh MRs (silent)
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.refreshMRs, async () => {
       await vscode.window.withProgress(
@@ -43,7 +45,17 @@ export function registerGitlabCommands(
     })
   );
 
-  // Open MR in browser
+  // Cycle provider filter: both → gitlab → github → both
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.cycleMRProvider, () => {
+      const next = mrTreeProvider.cycleProvider();
+      vscode.window.showInformationMessage(
+        `Epic Lens: Showing ${PROVIDER_LABELS[next]}`
+      );
+    })
+  );
+
+  // Open MR/PR in browser
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.openMR, (arg: unknown) => {
       const mr = resolveMr(arg);
@@ -52,14 +64,15 @@ export function registerGitlabCommands(
     })
   );
 
-  // Copy MR URL
+  // Copy MR/PR URL
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.copyMRUrl, async (arg: unknown) => {
       const mr = resolveMr(arg);
       if (!mr) return;
+      const prefix = mr.provider === "github" ? "#" : "!";
       await vscode.env.clipboard.writeText(mr.webUrl);
       vscode.window.showInformationMessage(
-        `Copied !${mr.iid} URL to clipboard`
+        `Copied ${prefix}${mr.iid} URL to clipboard`
       );
     })
   );
@@ -69,7 +82,6 @@ export function registerGitlabCommands(
     vscode.commands.registerCommand(CMD.configureGitlab, async () => {
       const config = vscode.workspace.getConfiguration();
 
-      // Host
       const currentHost =
         config.get<string>(CONFIG.gitlabHost) ?? "https://gitlab.com";
       const host = await vscode.window.showInputBox({
@@ -90,7 +102,6 @@ export function registerGitlabCommands(
         );
       }
 
-      // Token
       const token = await vscode.window.showInputBox({
         title: "GitLab Personal Access Token",
         prompt:
@@ -108,10 +119,53 @@ export function registerGitlabCommands(
       );
     })
   );
+
+  // Configure GitHub credentials
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.configureGithub, async () => {
+      const config = vscode.workspace.getConfiguration();
+
+      const currentHost =
+        config.get<string>(CONFIG.githubHost) ?? "https://api.github.com";
+      const host = await vscode.window.showInputBox({
+        title: "GitHub API Host",
+        prompt: "Enter your GitHub API URL (default for github.com)",
+        value: currentHost,
+        placeHolder: "https://api.github.com",
+        validateInput: (v) =>
+          v.startsWith("http") ? null : "Must be a valid URL",
+      });
+      if (host === undefined) return;
+
+      if (host !== currentHost) {
+        await config.update(
+          CONFIG.githubHost,
+          host.replace(/\/$/, ""),
+          true
+        );
+      }
+
+      const token = await vscode.window.showInputBox({
+        title: "GitHub Personal Access Token",
+        prompt:
+          "Enter your GitHub token (stored securely in OS keychain). Leave empty to use GITHUB_TOKEN env var or gh CLI config.",
+        password: true,
+      });
+      if (token === undefined) return;
+
+      if (token) {
+        await githubClient.storeToken(token);
+      }
+
+      vscode.window.showInformationMessage(
+        "Epic Lens: GitHub configuration saved"
+      );
+    })
+  );
 }
 
 /**
- * Resolve an MR from a command argument — can be a MergeRequestData
+ * Resolve an MR/PR from a command argument — can be a MergeRequestData
  * directly or a tree node containing one.
  */
 function resolveMr(arg: unknown): MergeRequestData | undefined {

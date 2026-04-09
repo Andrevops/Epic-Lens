@@ -93,6 +93,7 @@ export class GitLabClient implements vscode.Disposable {
     const projectName = projectPath.split("/").pop() ?? projectPath;
 
     return {
+      provider: "gitlab",
       id: raw.id,
       iid: raw.iid,
       title: raw.title,

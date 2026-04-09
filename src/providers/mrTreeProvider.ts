@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { CMD, CTX, MR_STATUS_EMOJI, MR_STATUS_LABELS } from "../constants";
-import type { MergeRequestData, MrStatusCategory } from "../types";
+import { CMD, CTX, MR_STATUS_EMOJI, MR_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
+import type { MergeRequestData, MrStatusCategory, MrProviderFilter } from "../types";
 import type { GitLabClient } from "../services/gitlabClient";
+import type { GitHubClient } from "../services/githubClient";
 
 /* ── Tree node types ── */
 
@@ -9,6 +10,7 @@ interface ProjectNode {
   kind: "project";
   projectPath: string;
   projectName: string;
+  providerIcon: string;
   mrs: MergeRequestData[];
 }
 
@@ -19,10 +21,13 @@ interface MrNode {
 
 type MrTreeNode = ProjectNode | MrNode;
 
+const PROVIDER_CYCLE: MrProviderFilter[] = ["both", "gitlab", "github"];
+
 export class MrTreeProvider
   implements vscode.TreeDataProvider<MrTreeNode>
 {
-  private _mrs: MergeRequestData[] = [];
+  private _allMrs: MergeRequestData[] = [];
+  private _providerFilter: MrProviderFilter = "both";
   private _onDidChangeTreeData = new vscode.EventEmitter<
     MrTreeNode | undefined | void
   >();
@@ -30,22 +35,48 @@ export class MrTreeProvider
 
   constructor(
     private _gitlabClient: GitLabClient,
+    private _githubClient: GitHubClient,
     private _output: vscode.OutputChannel
   ) {}
 
   get mrs(): MergeRequestData[] {
-    return this._mrs;
+    return this._filteredMrs();
+  }
+
+  get providerFilter(): MrProviderFilter {
+    return this._providerFilter;
+  }
+
+  cycleProvider(): MrProviderFilter {
+    const idx = PROVIDER_CYCLE.indexOf(this._providerFilter);
+    this._providerFilter = PROVIDER_CYCLE[(idx + 1) % PROVIDER_CYCLE.length];
+    vscode.commands.executeCommand(
+      "setContext",
+      "epicLens.mrProvider",
+      this._providerFilter
+    );
+    this._updateContext();
+    this._onDidChangeTreeData.fire();
+    return this._providerFilter;
   }
 
   async fetch(): Promise<number> {
-    this._mrs = await this._gitlabClient.fetchMyOpenMRs(this._output);
-    vscode.commands.executeCommand(
-      "setContext",
-      CTX.hasMRs,
-      this._mrs.length > 0
-    );
+    // Fetch from both providers in parallel
+    const [gitlabMrs, githubPrs] = await Promise.all([
+      this._gitlabClient.fetchMyOpenMRs(this._output).catch((e) => {
+        this._output.appendLine(`  GitLab fetch failed: ${e}`);
+        return [] as MergeRequestData[];
+      }),
+      this._githubClient.fetchMyOpenPRs(this._output).catch((e) => {
+        this._output.appendLine(`  GitHub fetch failed: ${e}`);
+        return [] as MergeRequestData[];
+      }),
+    ]);
+
+    this._allMrs = [...gitlabMrs, ...githubPrs];
+    this._updateContext();
     this._onDidChangeTreeData.fire();
-    return this._mrs.length;
+    return this._filteredMrs().length;
   }
 
   getTreeItem(node: MrTreeNode): vscode.TreeItem {
@@ -67,29 +98,49 @@ export class MrTreeProvider
     return [];
   }
 
+  private _filteredMrs(): MergeRequestData[] {
+    if (this._providerFilter === "both") return this._allMrs;
+    return this._allMrs.filter((mr) => mr.provider === this._providerFilter);
+  }
+
+  private _updateContext(): void {
+    const filtered = this._filteredMrs();
+    vscode.commands.executeCommand("setContext", CTX.hasMRs, filtered.length > 0);
+    vscode.commands.executeCommand(
+      "setContext",
+      "epicLens.mrProvider",
+      this._providerFilter
+    );
+  }
+
   private _getRootNodes(): MrTreeNode[] {
-    // Group MRs by project
+    const mrs = this._filteredMrs();
+
+    // Group MRs by project (prefixed with provider)
     const byProject = new Map<string, MergeRequestData[]>();
-    for (const mr of this._mrs) {
-      const list = byProject.get(mr.projectPath) ?? [];
+    for (const mr of mrs) {
+      const key = `${mr.provider}:${mr.projectPath}`;
+      const list = byProject.get(key) ?? [];
       list.push(mr);
-      byProject.set(mr.projectPath, list);
+      byProject.set(key, list);
     }
 
-    // If single project, show MRs flat (no grouping)
+    // Single project: show MRs flat
     if (byProject.size === 1) {
-      return this._mrs.map((mr) => ({ kind: "mr" as const, mr }));
+      return mrs.map((mr) => ({ kind: "mr" as const, mr }));
     }
 
     // Multiple projects: group under collapsible nodes
     const nodes: MrTreeNode[] = [];
-    for (const [projectPath, mrs] of byProject) {
-      const projectName = projectPath.split("/").pop() ?? projectPath;
+    for (const [, projectMrs] of byProject) {
+      const first = projectMrs[0];
+      const providerIcon = first.provider === "github" ? "🐙" : "🦊";
       nodes.push({
         kind: "project" as const,
-        projectPath,
-        projectName,
-        mrs,
+        projectPath: first.projectPath,
+        projectName: first.projectName,
+        providerIcon,
+        mrs: projectMrs,
       });
     }
     return nodes;
@@ -97,7 +148,7 @@ export class MrTreeProvider
 
   private _projectItem(node: ProjectNode): vscode.TreeItem {
     const count = node.mrs.length;
-    const label = `${node.projectName} (${count})`;
+    const label = `${node.providerIcon} ${node.projectName} (${count})`;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.Expanded
@@ -107,7 +158,7 @@ export class MrTreeProvider
       "repo",
       new vscode.ThemeColor("charts.purple")
     );
-    item.tooltip = node.projectPath;
+    item.tooltip = `${node.projectPath} (${node.mrs[0].provider})`;
     item.contextValue = "mrProject";
 
     return item;
@@ -116,7 +167,8 @@ export class MrTreeProvider
   private _mrItem(node: MrNode): vscode.TreeItem {
     const { mr } = node;
     const emoji = MR_STATUS_EMOJI[mr.status];
-    const label = `${emoji} !${mr.iid} ${mr.title}`;
+    const prefix = mr.provider === "github" ? "#" : "!";
+    const label = `${emoji} ${prefix}${mr.iid} ${mr.title}`;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.None
@@ -127,10 +179,10 @@ export class MrTreeProvider
     item.tooltip = this._mrTooltip(mr);
     item.contextValue = "mergeRequest";
 
-    // Click opens MR in browser
+    const openLabel = mr.provider === "github" ? "Open in GitHub" : "Open in GitLab";
     item.command = {
       command: CMD.openMR,
-      title: "Open in GitLab",
+      title: openLabel,
       arguments: [mr],
     };
 
@@ -174,6 +226,11 @@ export class MrTreeProvider
           "warning",
           new vscode.ThemeColor("charts.orange")
         );
+      case "changes_requested":
+        return new vscode.ThemeIcon(
+          "request-changes",
+          new vscode.ThemeColor("charts.orange")
+        );
       case "discussions_open":
         return new vscode.ThemeIcon(
           "comment-discussion",
@@ -189,7 +246,13 @@ export class MrTreeProvider
     md.isTrusted = true;
     md.supportHtml = true;
 
-    md.appendMarkdown(`**!${mr.iid}** — ${mr.title}\n\n`);
+    const prefix = mr.provider === "github" ? "#" : "!";
+    const providerName = mr.provider === "github" ? "GitHub" : "GitLab";
+
+    md.appendMarkdown(`**${prefix}${mr.iid}** — ${mr.title}\n\n`);
+    md.appendMarkdown(
+      `**Provider:** ${providerName}\n\n`
+    );
     md.appendMarkdown(
       `**Status:** ${MR_STATUS_LABELS[mr.status]} ${MR_STATUS_EMOJI[mr.status]}\n\n`
     );
@@ -212,10 +275,13 @@ export class MrTreeProvider
       md.appendMarkdown(`**Pipeline:** none\n\n`);
     }
 
-    // Approvals
+    // Approvals / Reviews
     const approved = mr.approvedBy.length;
-    const required = mr.approvalsRequired;
-    md.appendMarkdown(`**Approvals:** ${approved}/${required}`);
+    if (mr.provider === "github") {
+      md.appendMarkdown(`**Reviews:** ${approved} approved`);
+    } else {
+      md.appendMarkdown(`**Approvals:** ${approved}/${mr.approvalsRequired}`);
+    }
     if (mr.approvedBy.length > 0) {
       md.appendMarkdown(` (${mr.approvedBy.join(", ")})`);
     }
@@ -234,7 +300,7 @@ export class MrTreeProvider
     // Project path
     md.appendMarkdown(`**Project:** ${mr.projectPath}\n\n`);
 
-    md.appendMarkdown(`[Open in GitLab](${mr.webUrl})`);
+    md.appendMarkdown(`[Open in ${providerName}](${mr.webUrl})`);
 
     return md;
   }

@@ -66,7 +66,9 @@ export type WebviewMessage =
   | { type: "copyKey"; key: string }
   | { type: "setFilter"; filters: Partial<FilterState> };
 
-/* ── GitLab Merge Request types ── */
+/* ── Merge Request / Pull Request types ── */
+
+export type MrProvider = "gitlab" | "github";
 
 export type MrStatusCategory =
   | "ready"
@@ -76,9 +78,13 @@ export type MrStatusCategory =
   | "ci_failed"
   | "ci_running"
   | "has_conflicts"
+  | "changes_requested"
   | "discussions_open";
 
+export type MrProviderFilter = "both" | "gitlab" | "github";
+
 export interface MergeRequestData {
+  provider: MrProvider;
   id: number;
   iid: number;
   title: string;
@@ -122,4 +128,41 @@ export interface GitLabApprovalResponse {
   approved_by: { user: { username: string; name: string } }[];
   approvals_required: number;
   approvals_left: number;
+}
+
+/* ── GitHub API types ── */
+
+/** GitHub search result item (PR via issues search) */
+export interface GitHubSearchItem {
+  id: number;
+  number: number;
+  title: string;
+  html_url: string;
+  state: string;
+  draft?: boolean;
+  created_at: string;
+  updated_at: string;
+  pull_request?: { url: string; html_url: string };
+  repository_url: string; // e.g. "https://api.github.com/repos/owner/repo"
+}
+
+/** GitHub PR detail response */
+export interface GitHubPR {
+  number: number;
+  title: string;
+  html_url: string;
+  draft: boolean;
+  created_at: string;
+  updated_at: string;
+  head: { ref: string; sha: string };
+  base: { ref: string };
+  mergeable: boolean | null;
+  mergeable_state: string; // "clean" | "dirty" | "unstable" | "blocked" | "unknown"
+  user: { login: string };
+}
+
+/** GitHub review object */
+export interface GitHubReview {
+  user: { login: string };
+  state: string; // "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING"
 }
