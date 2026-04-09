@@ -29,16 +29,7 @@ export class GitLabClient implements vscode.Disposable {
       `  GitLab credentials — host: ${host ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`
     );
     if (!host || !token) {
-      vscode.window
-        .showWarningMessage(
-          "Epic Lens: GitLab token not found. You need a Personal Access Token with read_api scope.",
-          "Configure"
-        )
-        .then((choice) => {
-          if (choice === "Configure") {
-            vscode.commands.executeCommand("epicLens.configureGitlab");
-          }
-        });
+      output.appendLine("  GitLab: no credentials configured, skipping");
       return [];
     }
 

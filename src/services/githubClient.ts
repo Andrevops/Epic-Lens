@@ -31,16 +31,7 @@ export class GitHubClient implements vscode.Disposable {
       `  GitHub credentials — host: ${host ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`
     );
     if (!host || !token) {
-      vscode.window
-        .showWarningMessage(
-          "Epic Lens: GitHub token not found. You need a Personal Access Token or Fine-grained token with repo scope.",
-          "Configure"
-        )
-        .then((choice) => {
-          if (choice === "Configure") {
-            vscode.commands.executeCommand("epicLens.configureGithub");
-          }
-        });
+      output.appendLine("  GitHub: no credentials configured, skipping");
       return [];
     }
 
