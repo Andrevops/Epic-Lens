@@ -13,6 +13,12 @@ Jira Epic status visualizer and merge request tracker for VS Code. Fetch epics a
 - **Status/type filters** — Filter by status category, issue type, or hide done issues
 - **Keyboard shortcuts** — Chord-based shortcuts with `Alt+E` as the leader key
 - **Click to open** — Click any issue, epic, or MR to open it directly in the browser
+- **Auto-refresh** — Periodic re-fetch of epics and MRs on a configurable interval (default 5 min)
+- **Stale MR highlighting** — MRs older than a configurable threshold show a ⏰ indicator with age
+- **Reviewer view** — See MRs where you are assigned as reviewer; cycle between Authored / Reviewing / All scopes
+- **Status change notifications** — Toast alerts when an MR/PR status changes between fetches, with an "Open" button
+- **Jira-MR linking** — Automatically links MRs to Jira issues by parsing issue keys from branch names (e.g. `feat/DX-419-foo` → DX-419). Linked issues show a 🔗 count; tooltips show MR details
+- **MR/PR dashboard section** — The dashboard now includes a Merge Requests section below the Kanban board with status colors, stale flags, and reviewer tags
 
 ## Quick Start
 
@@ -54,6 +60,12 @@ The Merge Requests view has a toolbar button to cycle the provider filter:
 
 Projects are prefixed with 🦊 (GitLab) or 🐙 (GitHub) when showing both providers.
 
+A second toolbar button cycles the MR scope:
+
+**Authored** → **Reviewing** → **All** → **Authored** ...
+
+In Reviewing mode, only MRs where you are assigned as a reviewer are shown (marked with 📋). In All mode, both authored and reviewer MRs are shown.
+
 ### Generating a Jira API Token
 
 1. Go to https://id.atlassian.com/manage-profile/security/api-tokens
@@ -73,6 +85,7 @@ Projects are prefixed with 🦊 (GitLab) or 🐙 (GitHub) when showing both prov
 | `epicLens.jiraJql` | `""` | Custom JQL (overrides project and scope when set) |
 | `epicLens.hideDoneIssues` | `false` | Hide completed/done issues from the tree |
 | `epicLens.scanOnStartup` | `true` | Automatically fetch from Jira and GitLab when VS Code starts |
+| `epicLens.autoRefreshInterval` | `5` | Auto-refresh interval in minutes (0 to disable) |
 
 ### GitLab / GitHub
 
@@ -80,6 +93,7 @@ Projects are prefixed with 🦊 (GitLab) or 🐙 (GitHub) when showing both prov
 |---------|---------|-------------|
 | `epicLens.gitlabHost` | `"https://gitlab.com"` | GitLab instance URL (for self-hosted, e.g. `https://gitlab.example.com`) |
 | `epicLens.githubHost` | `"https://api.github.com"` | GitHub API URL (for GitHub Enterprise, e.g. `https://github.example.com/api/v3`) |
+| `epicLens.staleMRDays` | `7` | Flag MRs older than this many days as stale with ⏰ indicator (0 to disable) |
 
 ### Authentication
 
@@ -132,6 +146,7 @@ All shortcuts use `Alt+E` as a chord prefix:
 | Epic Lens: Fetch Merge Requests | Pull open MRs/PRs from GitLab and GitHub |
 | Epic Lens: Refresh Merge Requests | Re-fetch MR/PR statuses |
 | Epic Lens: Cycle Provider | Toggle between Both / GitLab / GitHub |
+| Epic Lens: Cycle Scope | Toggle MR scope between Authored / Reviewing / All |
 | Epic Lens: Open in Browser | Open the selected MR/PR in your browser |
 | Epic Lens: Copy MR/PR URL | Copy the URL to clipboard |
 | Epic Lens: Configure GitLab Credentials | Guided setup for GitLab connection |
@@ -166,6 +181,7 @@ Each MR in the sidebar shows a status based on its current state:
 | Has conflicts | :warning: | Merge conflicts need resolution |
 | Changes requested | :arrows_counterclockwise: | Reviewer requested changes (GitHub) |
 | Unresolved discussions | :speech_balloon: | Open review threads to address (GitLab) |
+| Stale | :alarm_clock: | MR/PR older than the configured `staleMRDays` threshold |
 
 MRs are grouped by project when you have open MRs across multiple repositories. Click any MR to open it in GitLab, or right-click for additional options.
 

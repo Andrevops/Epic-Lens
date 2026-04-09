@@ -35,6 +35,20 @@ A VS Code extension that fetches Jira epics/issues, GitLab merge requests, and G
 5. Tree provider groups by project with provider icons (🦊 GitLab / 🐙 GitHub), flat if single project
 6. Provider cycling button: Both → GitLab → GitHub → Both
 7. All clicks open MR/PR in browser
+8. Scope cycling button: Authored → Reviewing → All (reviewer MRs fetched via GitLab `reviewer_id` / GitHub `review-requested`)
+9. Stale MR detection compares `created_at` against `staleMRDays` threshold; stale MRs show ⏰ + age
+10. Status change detection diffs previous vs current MR statuses and fires toast notifications with "Open" action
+
+### Jira-MR Linking
+1. After MR/PR fetch, branch names are parsed for Jira issue keys (regex: project key + `-` + number)
+2. Matched keys are cross-referenced against loaded epics/issues in `EpicManager`
+3. Linked issues display a 🔗 count; tooltip shows linked MR titles, statuses, and URLs
+4. Linking is best-effort — unmatched keys are silently ignored
+
+### Dashboard MR Section
+1. `dashboardPanel.ts` receives MR/PR data alongside epic data via webview messages
+2. MR cards rendered below the Kanban board, grouped by project with status colors
+3. Cards include stale flags (⏰) and reviewer tags (📋) when applicable
 
 ## Key decisions
 - Jira API v3 `search/jql` endpoint (the old `/search` was removed by Atlassian)
@@ -50,6 +64,9 @@ A VS Code extension that fetches Jira epics/issues, GitLab merge requests, and G
 - GitLab MR status derived from `detailed_merge_status` + `head_pipeline.status` + approval count
 - GitHub PR status derived from `mergeable_state` + reviews (APPROVED/CHANGES_REQUESTED)
 - No local file scanning — all data sourced from Jira/GitLab APIs
+- Auto-refresh uses `setInterval` gated by `autoRefreshInterval` config; timer resets on manual fetch or config change
+- Jira-MR linking parses branch names with regex, not commit messages or MR descriptions
+- Status change notifications compare serialized MR status maps between fetch cycles
 
 ## Config settings
 - `epicLens.jiraBaseUrl` — Jira Cloud instance URL
@@ -61,6 +78,8 @@ A VS Code extension that fetches Jira epics/issues, GitLab merge requests, and G
 - `epicLens.scanOnStartup` — Auto-fetch epics and MRs on activation
 - `epicLens.gitlabHost` — GitLab instance URL (default: `https://gitlab.com`)
 - `epicLens.githubHost` — GitHub API URL (default: `https://api.github.com`)
+- `epicLens.autoRefreshInterval` — Auto-refresh interval in minutes (default: `5`, `0` to disable)
+- `epicLens.staleMRDays` — Flag MRs older than N days as stale (default: `7`, `0` to disable)
 
 ## Build
 ```bash
