@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.10.1
+
+### Bug Fixes
+- add MR/PR section to React dashboard (was only in inline fallback)
+
 ## 0.10.0
 
 ### Features
