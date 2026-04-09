@@ -33,28 +33,68 @@ export class GitLabClient implements vscode.Disposable {
       return [];
     }
 
-    const url = `${host}/api/v4/merge_requests?scope=created_by_me&state=opened&per_page=100`;
-    const response = await this._fetch(url, token, output);
-    if (!response) return [];
+    // Fetch authored + reviewer MRs in parallel
+    const [authoredResp, reviewerResp] = await Promise.all([
+      this._fetch(
+        `${host}/api/v4/merge_requests?scope=created_by_me&state=opened&per_page=100`,
+        token,
+        output
+      ),
+      this._fetch(
+        `${host}/api/v4/merge_requests?scope=all&state=opened&reviewer_username=&reviewer_id=&per_page=100`,
+        token,
+        output
+      ).catch(() => null), // graceful fallback if reviewer endpoint fails
+    ]);
 
-    const rawMRs: GitLabMR[] = await response.json();
-    output.appendLine(`  Open MRs fetched: ${rawMRs.length}`);
+    // For reviewer MRs we need the current user's id first
+    let reviewerMRs: GitLabMR[] = [];
+    const userResp = await this._fetch(`${host}/api/v4/user`, token, output);
+    if (userResp) {
+      const user = await userResp.json();
+      const reviewResp = await this._fetch(
+        `${host}/api/v4/merge_requests?reviewer_id=${user.id}&state=opened&per_page=100`,
+        token,
+        output
+      );
+      if (reviewResp) {
+        reviewerMRs = await reviewResp.json();
+        output.appendLine(`  GitLab reviewer MRs fetched: ${reviewerMRs.length}`);
+      }
+    }
 
-    // Fetch approvals in parallel for all MRs
+    const authoredMRs: GitLabMR[] = authoredResp ? await authoredResp.json() : [];
+    output.appendLine(`  GitLab authored MRs fetched: ${authoredMRs.length}`);
+
+    // Deduplicate: if an MR appears in both, keep as "author"
+    const seenIds = new Set<number>();
+    const allRaw: { raw: GitLabMR; role: "author" | "reviewer" }[] = [];
+
+    for (const mr of authoredMRs) {
+      seenIds.add(mr.id);
+      allRaw.push({ raw: mr, role: "author" });
+    }
+    for (const mr of reviewerMRs) {
+      if (!seenIds.has(mr.id)) {
+        seenIds.add(mr.id);
+        allRaw.push({ raw: mr, role: "reviewer" });
+      }
+    }
+
+    // Fetch approvals in parallel
     const approvalResults = await Promise.allSettled(
-      rawMRs.map((mr) =>
-        this._fetchApprovals(host, token, mr.project_id, mr.iid, output)
+      allRaw.map(({ raw }) =>
+        this._fetchApprovals(host, token, raw.project_id, raw.iid, output)
       )
     );
 
-    const mrs: MergeRequestData[] = rawMRs.map((raw, i) => {
-      const approvalResult = approvalResults[i];
-      const approvals: GitLabApprovalResponse | null =
-        approvalResult.status === "fulfilled" ? approvalResult.value : null;
-      return this._toMergeRequestData(raw, approvals);
+    return allRaw.map(({ raw, role }, i) => {
+      const approvals =
+        approvalResults[i].status === "fulfilled"
+          ? approvalResults[i].value
+          : null;
+      return this._toMergeRequestData(raw, approvals, role);
     });
-
-    return mrs;
   }
 
   private async _fetchApprovals(
@@ -72,7 +112,8 @@ export class GitLabClient implements vscode.Disposable {
 
   private _toMergeRequestData(
     raw: GitLabMR,
-    approvals: GitLabApprovalResponse | null
+    approvals: GitLabApprovalResponse | null,
+    role: "author" | "reviewer" = "author"
   ): MergeRequestData {
     const approvedBy =
       approvals?.approved_by?.map((a) => a.user.name) ?? [];
@@ -85,6 +126,7 @@ export class GitLabClient implements vscode.Disposable {
 
     return {
       provider: "gitlab",
+      role,
       id: raw.id,
       iid: raw.iid,
       title: raw.title,

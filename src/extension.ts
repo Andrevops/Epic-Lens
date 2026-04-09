@@ -32,6 +32,7 @@ export function activate(context: vscode.ExtensionContext): void {
 
   // GitLab MR TreeView
   const mrTreeProvider = new MrTreeProvider(gitlabClient, githubClient, output);
+  treeProvider.setMrTreeProvider(mrTreeProvider);
   const mrTreeView = vscode.window.createTreeView(VIEW_MRS, {
     treeDataProvider: mrTreeProvider,
   });
@@ -73,7 +74,7 @@ export function activate(context: vscode.ExtensionContext): void {
   // Dashboard command
   context.subscriptions.push(
     vscode.commands.registerCommand("epicLens.openDashboard", () => {
-      DashboardPanel.createOrShow(context.extensionUri, manager);
+      DashboardPanel.createOrShow(context.extensionUri, manager, mrTreeProvider);
     })
   );
 
@@ -100,6 +101,36 @@ export function activate(context: vscode.ExtensionContext): void {
     setTimeout(() => manager.scan(), 1500);
     setTimeout(() => mrTreeProvider.fetch(), 2000);
   }
+
+  // Auto-refresh interval
+  let refreshTimer: ReturnType<typeof setInterval> | undefined;
+
+  const setupAutoRefresh = () => {
+    if (refreshTimer) clearInterval(refreshTimer);
+    const minutes =
+      vscode.workspace
+        .getConfiguration()
+        .get<number>(CONFIG.autoRefreshInterval) ?? 5;
+    if (minutes > 0) {
+      const ms = minutes * 60_000;
+      refreshTimer = setInterval(() => {
+        output.appendLine(`Auto-refresh triggered (every ${minutes}m)`);
+        manager.scan();
+        mrTreeProvider.fetch();
+      }, ms);
+      output.appendLine(`Auto-refresh set to ${minutes} minutes`);
+    }
+  };
+
+  setupAutoRefresh();
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration(CONFIG.autoRefreshInterval)) {
+        setupAutoRefresh();
+      }
+    }),
+    { dispose: () => { if (refreshTimer) clearInterval(refreshTimer); } }
+  );
 
   output.appendLine("Epic Lens activated");
 }

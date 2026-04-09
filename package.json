@@ -152,6 +152,12 @@
         "icon": "$(layers)"
       },
       {
+        "command": "epicLens.cycleMRScope",
+        "title": "Cycle Scope: Authored / Reviewing / All",
+        "category": "Epic Lens",
+        "icon": "$(account)"
+      },
+      {
         "command": "epicLens.openMR",
         "title": "Open in Browser",
         "category": "Epic Lens",
@@ -269,6 +275,11 @@
           "command": "epicLens.cycleMRProvider",
           "when": "view == epicLens.mergeRequests",
           "group": "navigation@3"
+        },
+        {
+          "command": "epicLens.cycleMRScope",
+          "when": "view == epicLens.mergeRequests",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -349,6 +360,18 @@
           "type": "string",
           "default": "https://api.github.com",
           "description": "GitHub API URL (default for github.com, or your GitHub Enterprise API endpoint)"
+        },
+        "epicLens.autoRefreshInterval": {
+          "type": "number",
+          "default": 5,
+          "minimum": 0,
+          "description": "Auto-refresh interval in minutes (0 to disable). Re-fetches epics and merge requests automatically."
+        },
+        "epicLens.staleMRDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 0,
+          "description": "Flag merge requests older than this many days as stale (0 to disable). Stale MRs show a ⏰ indicator."
         }
       }
     }

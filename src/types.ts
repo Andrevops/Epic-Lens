@@ -82,9 +82,12 @@ export type MrStatusCategory =
   | "discussions_open";
 
 export type MrProviderFilter = "both" | "gitlab" | "github";
+export type MrRole = "author" | "reviewer";
+export type MrScopeFilter = "authored" | "reviewing" | "all";
 
 export interface MergeRequestData {
   provider: MrProvider;
+  role: MrRole;
   id: number;
   iid: number;
   title: string;

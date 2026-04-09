@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
-import { CMD, CTX, MR_STATUS_EMOJI, MR_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
-import type { MergeRequestData, MrStatusCategory, MrProviderFilter } from "../types";
+import { CMD, CTX, CONFIG, MR_STATUS_EMOJI, MR_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
+import type { MergeRequestData, MrStatusCategory, MrProviderFilter, MrScopeFilter } from "../types";
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
 
@@ -22,12 +22,15 @@ interface MrNode {
 type MrTreeNode = ProjectNode | MrNode;
 
 const PROVIDER_CYCLE: MrProviderFilter[] = ["both", "gitlab", "github"];
+const SCOPE_CYCLE: MrScopeFilter[] = ["authored", "reviewing", "all"];
 
 export class MrTreeProvider
   implements vscode.TreeDataProvider<MrTreeNode>
 {
   private _allMrs: MergeRequestData[] = [];
+  private _previousStatuses = new Map<string, MrStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
+  private _scopeFilter: MrScopeFilter = "all";
   private _onDidChangeTreeData = new vscode.EventEmitter<
     MrTreeNode | undefined | void
   >();
@@ -47,6 +50,10 @@ export class MrTreeProvider
     return this._providerFilter;
   }
 
+  get scopeFilter(): MrScopeFilter {
+    return this._scopeFilter;
+  }
+
   cycleProvider(): MrProviderFilter {
     const idx = PROVIDER_CYCLE.indexOf(this._providerFilter);
     this._providerFilter = PROVIDER_CYCLE[(idx + 1) % PROVIDER_CYCLE.length];
@@ -58,6 +65,14 @@ export class MrTreeProvider
     this._updateContext();
     this._onDidChangeTreeData.fire();
     return this._providerFilter;
+  }
+
+  cycleScope(): MrScopeFilter {
+    const idx = SCOPE_CYCLE.indexOf(this._scopeFilter);
+    this._scopeFilter = SCOPE_CYCLE[(idx + 1) % SCOPE_CYCLE.length];
+    this._updateContext();
+    this._onDidChangeTreeData.fire();
+    return this._scopeFilter;
   }
 
   async fetch(): Promise<number> {
@@ -73,7 +88,9 @@ export class MrTreeProvider
       }),
     ]);
 
-    this._allMrs = [...gitlabMrs, ...githubPrs];
+    const newMrs = [...gitlabMrs, ...githubPrs];
+    this._notifyChanges(newMrs);
+    this._allMrs = newMrs;
     this._updateContext();
     this._onDidChangeTreeData.fire();
     return this._filteredMrs().length;
@@ -99,8 +116,15 @@ export class MrTreeProvider
   }
 
   private _filteredMrs(): MergeRequestData[] {
-    if (this._providerFilter === "both") return this._allMrs;
-    return this._allMrs.filter((mr) => mr.provider === this._providerFilter);
+    let mrs = this._allMrs;
+    if (this._providerFilter !== "both") {
+      mrs = mrs.filter((mr) => mr.provider === this._providerFilter);
+    }
+    if (this._scopeFilter !== "all") {
+      const role = this._scopeFilter === "authored" ? "author" : "reviewer";
+      mrs = mrs.filter((mr) => mr.role === role);
+    }
+    return mrs;
   }
 
   private _updateContext(): void {
@@ -111,6 +135,40 @@ export class MrTreeProvider
       "epicLens.mrProvider",
       this._providerFilter
     );
+  }
+
+  private _notifyChanges(newMrs: MergeRequestData[]): void {
+    // Skip notifications on first fetch (no previous data)
+    if (this._previousStatuses.size === 0 && this._allMrs.length === 0) {
+      for (const mr of newMrs) {
+        this._previousStatuses.set(mr.webUrl, mr.status);
+      }
+      return;
+    }
+
+    for (const mr of newMrs) {
+      const prev = this._previousStatuses.get(mr.webUrl);
+      if (prev && prev !== mr.status) {
+        const prefix = mr.provider === "github" ? "#" : "!";
+        const label = MR_STATUS_LABELS[mr.status];
+        vscode.window
+          .showInformationMessage(
+            `${MR_STATUS_EMOJI[mr.status]} ${prefix}${mr.iid} ${mr.title} → ${label}`,
+            "Open"
+          )
+          .then((choice) => {
+            if (choice === "Open") {
+              vscode.env.openExternal(vscode.Uri.parse(mr.webUrl));
+            }
+          });
+      }
+    }
+
+    // Update stored statuses
+    this._previousStatuses.clear();
+    for (const mr of newMrs) {
+      this._previousStatuses.set(mr.webUrl, mr.status);
+    }
   }
 
   private _getRootNodes(): MrTreeNode[] {
@@ -164,17 +222,34 @@ export class MrTreeProvider
     return item;
   }
 
+  private _isStale(mr: MergeRequestData): boolean {
+    const staleDays =
+      vscode.workspace
+        .getConfiguration()
+        .get<number>(CONFIG.staleMRDays) ?? 7;
+    if (staleDays <= 0) return false;
+    const ageMs = Date.now() - new Date(mr.createdAt).getTime();
+    return ageMs > staleDays * 86_400_000;
+  }
+
   private _mrItem(node: MrNode): vscode.TreeItem {
     const { mr } = node;
+    const stale = this._isStale(mr);
     const emoji = MR_STATUS_EMOJI[mr.status];
+    const staleTag = stale ? " ⏰" : "";
+    const reviewTag = mr.role === "reviewer" ? " 📋" : "";
     const prefix = mr.provider === "github" ? "#" : "!";
-    const label = `${emoji} ${prefix}${mr.iid} ${mr.title}`;
+    const label = `${emoji} ${prefix}${mr.iid} ${mr.title}${reviewTag}${staleTag}`;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.None
     );
 
-    item.description = `→ ${mr.targetBranch}`;
+    const ageDays = Math.floor(
+      (Date.now() - new Date(mr.createdAt).getTime()) / 86_400_000
+    );
+    const ageStr = stale ? ` (${ageDays}d old)` : "";
+    item.description = `→ ${mr.targetBranch}${ageStr}`;
     item.iconPath = this._mrIcon(mr.status);
     item.tooltip = this._mrTooltip(mr);
     item.contextValue = "mergeRequest";

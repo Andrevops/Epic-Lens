@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import type { EpicManager } from "../services/epicManager";
-import type { ExtensionMessage, WebviewMessage } from "../types";
+import type { MrTreeProvider } from "../providers/mrTreeProvider";
+import type { ExtensionMessage, WebviewMessage, MergeRequestData } from "../types";
 
 export class DashboardPanel {
   public static currentPanel: DashboardPanel | undefined;
@@ -14,7 +15,8 @@ export class DashboardPanel {
   private constructor(
     panel: vscode.WebviewPanel,
     extensionUri: vscode.Uri,
-    private _manager: EpicManager
+    private _manager: EpicManager,
+    private _mrTreeProvider?: MrTreeProvider
   ) {
     this._panel = panel;
     this._extensionUri = extensionUri;
@@ -32,6 +34,11 @@ export class DashboardPanel {
     this._disposables.push(
       this._manager.onDidChangeEpics(() => this._sendData())
     );
+    if (this._mrTreeProvider) {
+      this._disposables.push(
+        this._mrTreeProvider.onDidChangeTreeData(() => this._sendData())
+      );
+    }
     this._disposables.push(
       this._manager.onDidChangeFilters((filters) => {
         this._postMessage({ type: "filtersChanged", filters });
@@ -47,7 +54,8 @@ export class DashboardPanel {
 
   static createOrShow(
     extensionUri: vscode.Uri,
-    manager: EpicManager
+    manager: EpicManager,
+    mrTreeProvider?: MrTreeProvider
   ): void {
     const column = vscode.ViewColumn.One;
 
@@ -73,7 +81,8 @@ export class DashboardPanel {
     DashboardPanel.currentPanel = new DashboardPanel(
       panel,
       extensionUri,
-      manager
+      manager,
+      mrTreeProvider
     );
   }
 
@@ -90,6 +99,11 @@ export class DashboardPanel {
         break;
       case "copyKey":
         vscode.commands.executeCommand("epicLens.copyKey", msg.key);
+        break;
+      case "openMR":
+        if ((msg as any).url) {
+          vscode.env.openExternal(vscode.Uri.parse((msg as any).url));
+        }
         break;
       case "setFilter":
         if (msg.filters.statusFilter !== undefined) {
@@ -108,7 +122,8 @@ export class DashboardPanel {
   private _sendData(): void {
     const epics = this._manager.getFilteredEpics();
     const filters = this._manager.filters;
-    this._postMessage({ type: "setData", epics, filters });
+    const mrs = this._mrTreeProvider?.mrs ?? [];
+    this._postMessage({ type: "setData", epics, filters, mrs } as any);
   }
 
   private _postMessage(msg: ExtensionMessage): void {
@@ -402,6 +417,7 @@ export class DashboardPanel {
     </div>
     <div class="stats" id="stats"></div>
     <div id="content"></div>
+    <div id="mr-section" style="margin-top:32px;"></div>
   </div>
 
   <div id="context-menu" class="context-menu" style="display:none;"></div>
@@ -409,6 +425,7 @@ export class DashboardPanel {
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     let epics = [];
+    let mrs = [];
     let filters = { statusFilter: 'all', typeFilter: 'all', hideDone: false };
     let viewMode = 'board';
     let contextMenuTarget = null;
@@ -428,9 +445,11 @@ export class DashboardPanel {
       const msg = event.data;
       if (msg.type === 'setData') {
         epics = msg.epics;
+        mrs = msg.mrs || [];
         filters = msg.filters;
         syncFilterUI();
         render();
+        renderMRSection();
       } else if (msg.type === 'filtersChanged') {
         filters = msg.filters;
         syncFilterUI();
@@ -623,6 +642,80 @@ export class DashboardPanel {
       d.textContent = s;
       return d.innerHTML;
     }
+
+    const MR_STATUS_EMOJI = {
+      ready: '✅', approved: '👍', needs_review: '👀', draft: '✏️',
+      ci_failed: '❌', ci_running: '🔄', has_conflicts: '⚠️',
+      changes_requested: '🔃', discussions_open: '💬'
+    };
+    const MR_STATUS_LABELS = {
+      ready: 'Ready to merge', approved: 'Approved', needs_review: 'Needs review',
+      draft: 'Draft', ci_failed: 'Pipeline failed', ci_running: 'Pipeline running',
+      has_conflicts: 'Has conflicts', changes_requested: 'Changes requested',
+      discussions_open: 'Unresolved discussions'
+    };
+    const MR_STATUS_ORDER = ['needs_review', 'changes_requested', 'discussions_open', 'ci_failed', 'ci_running', 'has_conflicts', 'draft', 'approved', 'ready'];
+
+    function renderMRSection() {
+      const section = document.getElementById('mr-section');
+      if (!mrs || mrs.length === 0) {
+        section.innerHTML = '';
+        return;
+      }
+
+      const providerIcon = (p) => p === 'github' ? '🐙' : '🦊';
+      const prefix = (mr) => mr.provider === 'github' ? '#' : '!';
+
+      // Stats
+      let html = '<h1 style="margin-bottom:16px;">🔀 Merge Requests / Pull Requests (' + mrs.length + ')</h1>';
+      html += '<div class="stats">';
+      const byStatus = {};
+      mrs.forEach(mr => {
+        byStatus[mr.status] = (byStatus[mr.status] || 0) + 1;
+      });
+      MR_STATUS_ORDER.forEach(s => {
+        if (byStatus[s]) {
+          html += statCard((MR_STATUS_EMOJI[s] || '') + ' ' + byStatus[s], MR_STATUS_LABELS[s] || s);
+        }
+      });
+      html += '</div>';
+
+      // Cards grouped by project
+      const byProject = {};
+      mrs.forEach(mr => {
+        const key = mr.provider + ':' + mr.projectPath;
+        if (!byProject[key]) byProject[key] = { name: mr.projectName, provider: mr.provider, mrs: [] };
+        byProject[key].mrs.push(mr);
+      });
+
+      html += '<div style="margin-top:16px;">';
+      Object.values(byProject).forEach(group => {
+        html += '<div class="epic-section">';
+        html += '<div class="epic-header"><h2>' + providerIcon(group.provider) + ' ' + esc(group.name) + ' (' + group.mrs.length + ')</h2></div>';
+        group.mrs.forEach(mr => {
+          const statusColor = mr.status === 'ready' ? 'done' : mr.status === 'approved' ? 'in_progress' : mr.status === 'ci_failed' || mr.status === 'has_conflicts' ? 'blocked' : mr.status === 'draft' ? 'rejected' : 'review';
+          const emoji = MR_STATUS_EMOJI[mr.status] || '📋';
+          const ageDays = Math.floor((Date.now() - new Date(mr.createdAt).getTime()) / 86400000);
+          const stale = ageDays > 7 ? ' ⏰ ' + ageDays + 'd' : '';
+          html += '<div class="card ' + statusColor + '" style="cursor:pointer;" onclick="window.openMR(\\'' + mr.webUrl + '\\')">';
+          html += '<div class="card-key">' + emoji + ' ' + providerIcon(mr.provider) + ' ' + prefix(mr) + mr.iid + (mr.role === 'reviewer' ? ' 📋 reviewer' : '') + stale + '</div>';
+          html += '<div class="card-title">' + esc(mr.title) + '</div>';
+          html += '<div class="card-meta">';
+          html += '<span>' + esc(mr.sourceBranch) + ' → ' + esc(mr.targetBranch) + '</span>';
+          if (mr.approvedBy && mr.approvedBy.length > 0) html += '<span>👍 ' + mr.approvedBy.length + '</span>';
+          if (mr.pipelineStatus) html += '<span>CI: ' + mr.pipelineStatus + '</span>';
+          html += '</div></div>';
+        });
+        html += '</div>';
+      });
+      html += '</div>';
+
+      section.innerHTML = html;
+    }
+
+    window.openMR = function(url) {
+      vscode.postMessage({ type: 'openMR', url: url });
+    };
 
     // Signal ready
     vscode.postMessage({ type: 'ready' });

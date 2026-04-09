@@ -22,6 +22,7 @@ export const CMD = {
   configureGitlab: "epicLens.configureGitlab",
   configureGithub: "epicLens.configureGithub",
   cycleMRProvider: "epicLens.cycleMRProvider",
+  cycleMRScope: "epicLens.cycleMRScope",
 } as const;
 
 export const CONFIG = {
@@ -36,6 +37,9 @@ export const CONFIG = {
   gitlabHost: "epicLens.gitlabHost",
   // GitHub
   githubHost: "epicLens.githubHost",
+  // Behavior
+  autoRefreshInterval: "epicLens.autoRefreshInterval",
+  staleMRDays: "epicLens.staleMRDays",
 } as const;
 
 export const CTX = {
@@ -151,6 +155,12 @@ export const PROVIDER_ICONS: Record<import("./types").MrProviderFilter, string> 
   both: "$(layers)",
   gitlab: "$(git-merge)",
   github: "$(mark-github)",
+};
+
+export const SCOPE_LABELS: Record<import("./types").MrScopeFilter, string> = {
+  authored: "Authored by me",
+  reviewing: "Reviewing",
+  all: "All (authored + reviewing)",
 };
 
 export function categorizeMrStatus(

@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { CONFIG, CMD, PROVIDER_LABELS } from "../constants";
+import { CONFIG, CMD, PROVIDER_LABELS, SCOPE_LABELS } from "../constants";
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
 import type { MrTreeProvider } from "../providers/mrTreeProvider";
@@ -51,6 +51,16 @@ export function registerMrCommands(
       const next = mrTreeProvider.cycleProvider();
       vscode.window.showInformationMessage(
         `Epic Lens: Showing ${PROVIDER_LABELS[next]}`
+      );
+    })
+  );
+
+  // Cycle scope filter: authored → reviewing → all
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.cycleMRScope, () => {
+      const next = mrTreeProvider.cycleScope();
+      vscode.window.showInformationMessage(
+        `Epic Lens: Showing ${SCOPE_LABELS[next]}`
       );
     })
   );

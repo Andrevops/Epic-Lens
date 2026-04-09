@@ -1,7 +1,8 @@
 import * as vscode from "vscode";
-import { CONFIG, STATUS_EMOJI, CMD } from "../constants";
-import type { EpicData, IssueData } from "../types";
+import { CONFIG, STATUS_EMOJI, MR_STATUS_EMOJI, MR_STATUS_LABELS, CMD } from "../constants";
+import type { EpicData, IssueData, MergeRequestData } from "../types";
 import type { EpicManager } from "../services/epicManager";
+import type { MrTreeProvider } from "./mrTreeProvider";
 
 type TreeNode = EpicNode | IssueNode;
 
@@ -25,8 +26,38 @@ export class EpicTreeProvider
   >();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
+  private _mrTreeProvider?: MrTreeProvider;
+
   constructor(private _manager: EpicManager) {
     _manager.onDidChangeEpics(() => this._onDidChangeTreeData.fire());
+  }
+
+  setMrTreeProvider(mrTreeProvider: MrTreeProvider): void {
+    this._mrTreeProvider = mrTreeProvider;
+    // Refresh epic tree when MR data changes (to update linked MR info)
+    mrTreeProvider.onDidChangeTreeData(() => this._onDidChangeTreeData.fire());
+  }
+
+  /**
+   * Build a map of Jira issue key → linked MRs by parsing branch names.
+   * Matches patterns like: feat/DX-419-description, DX-419, fix/BACK-123_foo
+   */
+  private _getLinkedMrs(): Map<string, MergeRequestData[]> {
+    const map = new Map<string, MergeRequestData[]>();
+    if (!this._mrTreeProvider) return map;
+
+    const issueKeyPattern = /([A-Z][A-Z0-9]+-\d+)/g;
+
+    for (const mr of this._mrTreeProvider.mrs) {
+      const matches = mr.sourceBranch.matchAll(issueKeyPattern);
+      for (const match of matches) {
+        const key = match[1];
+        const list = map.get(key) ?? [];
+        list.push(mr);
+        map.set(key, list);
+      }
+    }
+    return map;
   }
 
   refresh(): void {
@@ -146,8 +177,10 @@ export class EpicTreeProvider
   private _issueItem(node: IssueNode): vscode.TreeItem {
     const { issue } = node;
     const emoji = STATUS_EMOJI[issue.statusCategory];
+    const linkedMrs = this._getLinkedMrs().get(issue.key) ?? [];
 
-    const label = `${emoji} ${issue.key} ${issue.type}: ${issue.summary}`;
+    const mrTag = linkedMrs.length > 0 ? ` 🔗${linkedMrs.length}` : "";
+    const label = `${emoji} ${issue.key} ${issue.type}: ${issue.summary}${mrTag}`;
     const item = new vscode.TreeItem(
       label,
       vscode.TreeItemCollapsibleState.None
@@ -155,7 +188,7 @@ export class EpicTreeProvider
 
     item.description = issue.status;
     item.iconPath = this._issueIcon(issue);
-    item.tooltip = this._issueTooltip(issue, node.jiraBaseUrl);
+    item.tooltip = this._issueTooltip(issue, node.jiraBaseUrl, linkedMrs);
     item.contextValue = "issue";
 
     // Click opens in Jira
@@ -207,7 +240,8 @@ export class EpicTreeProvider
 
   private _issueTooltip(
     issue: IssueData,
-    jiraBaseUrl: string
+    jiraBaseUrl: string,
+    linkedMrs: MergeRequestData[] = []
   ): vscode.MarkdownString {
     const md = new vscode.MarkdownString();
     md.isTrusted = true;
@@ -224,6 +258,21 @@ export class EpicTreeProvider
     if (issue.priority) {
       md.appendMarkdown(`**Priority:** ${issue.priority}\n\n`);
     }
+
+    // Linked MRs/PRs
+    if (linkedMrs.length > 0) {
+      md.appendMarkdown(`---\n\n**Linked MRs/PRs:**\n\n`);
+      for (const mr of linkedMrs) {
+        const prefix = mr.provider === "github" ? "#" : "!";
+        const providerIcon = mr.provider === "github" ? "🐙" : "🦊";
+        const statusEmoji = MR_STATUS_EMOJI[mr.status];
+        const statusLabel = MR_STATUS_LABELS[mr.status];
+        md.appendMarkdown(
+          `${providerIcon} ${statusEmoji} [${prefix}${mr.iid} ${mr.title}](${mr.webUrl}) — ${statusLabel}\n\n`
+        );
+      }
+    }
+
     if (jiraBaseUrl) {
       md.appendMarkdown(
         `[Open in Jira](${jiraBaseUrl}/browse/${issue.key})`

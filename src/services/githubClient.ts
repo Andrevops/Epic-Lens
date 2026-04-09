@@ -42,25 +42,56 @@ export class GitHubClient implements vscode.Disposable {
     const username: string = userData.login;
     output.appendLine(`  GitHub user: ${username}`);
 
-    // Step 2: Search for open PRs authored by this user
-    const searchUrl = `${host}/search/issues?q=type:pr+state:open+author:${username}&per_page=100&sort=updated&order=desc`;
-    const searchResp = await this._fetch(searchUrl, token, output);
-    if (!searchResp) return [];
-    const searchData = await searchResp.json();
-    const items: GitHubSearchItem[] = searchData.items ?? [];
-    output.appendLine(`  Open PRs found: ${items.length}`);
+    // Step 2: Search for authored + review-requested PRs in parallel
+    const [authoredResp, reviewResp] = await Promise.all([
+      this._fetch(
+        `${host}/search/issues?q=type:pr+state:open+author:${username}&per_page=100&sort=updated&order=desc`,
+        token,
+        output
+      ),
+      this._fetch(
+        `${host}/search/issues?q=type:pr+state:open+review-requested:${username}&per_page=100&sort=updated&order=desc`,
+        token,
+        output
+      ),
+    ]);
 
-    // Filter to only actual PRs (safety check)
-    const prItems = items.filter((i) => i.pull_request);
+    const authoredData = authoredResp ? await authoredResp.json() : { items: [] };
+    const reviewData = reviewResp ? await reviewResp.json() : { items: [] };
+
+    const authoredItems: GitHubSearchItem[] = (authoredData.items ?? []).filter(
+      (i: GitHubSearchItem) => i.pull_request
+    );
+    const reviewItems: GitHubSearchItem[] = (reviewData.items ?? []).filter(
+      (i: GitHubSearchItem) => i.pull_request
+    );
+
+    output.appendLine(`  GitHub authored PRs: ${authoredItems.length}`);
+    output.appendLine(`  GitHub review-requested PRs: ${reviewItems.length}`);
+
+    // Deduplicate: authored wins over reviewer
+    const seenIds = new Set<number>();
+    const allItems: { item: GitHubSearchItem; role: "author" | "reviewer" }[] = [];
+
+    for (const item of authoredItems) {
+      seenIds.add(item.id);
+      allItems.push({ item, role: "author" });
+    }
+    for (const item of reviewItems) {
+      if (!seenIds.has(item.id)) {
+        seenIds.add(item.id);
+        allItems.push({ item, role: "reviewer" });
+      }
+    }
 
     // Step 3: Fetch PR details + reviews in parallel
-    const detailPromises = prItems.map(async (item) => {
+    const detailPromises = allItems.map(async ({ item, role }) => {
       const { owner, repo } = this._parseRepoUrl(item.repository_url);
       const [prDetail, reviews] = await Promise.all([
         this._fetchPRDetail(host, token, owner, repo, item.number, output),
         this._fetchReviews(host, token, owner, repo, item.number, output),
       ]);
-      return this._toMergeRequestData(item, owner, repo, prDetail, reviews);
+      return this._toMergeRequestData(item, owner, repo, prDetail, reviews, role);
     });
 
     const results = await Promise.allSettled(detailPromises);
@@ -102,7 +133,8 @@ export class GitHubClient implements vscode.Disposable {
     owner: string,
     repo: string,
     prDetail: GitHubPR | null,
-    reviews: GitHubReview[]
+    reviews: GitHubReview[],
+    role: "author" | "reviewer" = "author"
   ): MergeRequestData {
     const draft = prDetail?.draft ?? item.draft ?? false;
     const hasConflicts = prDetail?.mergeable_state === "dirty";
@@ -141,6 +173,7 @@ export class GitHubClient implements vscode.Disposable {
 
     return {
       provider: "github",
+      role,
       id: item.id,
       iid: item.number,
       title: item.title,
