@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="resources/icons/icon-animated.gif" alt="Epic Lens" width="128" />
+</p>
+
 # Epic Lens
 
 **AI is changing how fast we ship code.** A feature that used to take days now lands in hours. But velocity without visibility is chaos — tickets pile up, MRs go stale overnight, and you start the next morning wondering *"what did I even ship yesterday?"*
