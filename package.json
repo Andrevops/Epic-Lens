@@ -379,7 +379,7 @@
     }
   },
   "scripts": {
-    "build:webview": "cd webview-ui && npm run build",
+    "build:webview": "cd webview-ui && npm install --prefer-offline --silent && npm run build",
     "compile": "node esbuild.mjs",
     "build": "npm run build:webview && node esbuild.mjs --production",
     "watch": "node esbuild.mjs --watch",
