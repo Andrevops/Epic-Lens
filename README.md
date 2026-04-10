@@ -214,6 +214,17 @@ make release
 make install
 ```
 
+## Andrevops Ecosystem
+
+Epic Lens is part of the [Andrevops](https://github.com/Andrevops) developer tooling suite.
+
+| Tool | Relationship |
+|------|-------------|
+| [Diffchestrator](https://github.com/Andrevops/diffchestrator) | Epic Lens consumes Diffchestrator's public API to filter epics and MRs by the currently selected repo. When you click a repo in Diffchestrator, Epic Lens can scope its view to that repo's issues and merge requests. |
+| [Makestro](https://github.com/Andrevops/Makestro) | Sibling extension — both consume Diffchestrator's API for repo-aware context |
+| [claude-sandbox](https://github.com/Andrevops/claude-sandbox) | Claude Code sessions launched via Diffchestrator's Yolo command generate the MRs and commits that Epic Lens tracks |
+| [claude-stats](https://github.com/Andrevops/claude-stats) | Complementary CLI — analyzes the Claude Code sessions that produce the work Epic Lens gives visibility into |
+
 ## License
 
 MIT
