@@ -2,6 +2,18 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.12.0
+
+### Features
+- animate individual SVG elements — lightning flicker, sparkle drift, lens shimmer
+
+### Bug Fixes
+- regenerate animated icon with transparent background
+
+### Other
+- add Andrevops ecosystem section
+- add animated icon to README header
+
 ## 0.11.2
 
 ### Bug Fixes
