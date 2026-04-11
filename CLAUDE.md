@@ -84,8 +84,8 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 ## Build
 ```bash
 npm install && npm install --prefix webview-ui
-node esbuild.mjs          # dev build
-make build                 # production (webview + extension)
+node esbuild.mjs          # extension only (no webview)
+make build                 # full build (webview + extension)
 make release               # auto-bump, build, package .vsix
 ```
 

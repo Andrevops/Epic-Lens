@@ -351,7 +351,7 @@
         "epicLens.scanOnStartup": {
           "type": "boolean",
           "default": true,
-          "description": "Automatically fetch epics from Jira and merge requests from GitLab on activation"
+          "description": "Automatically fetch epics from Jira and merge requests from GitLab and GitHub on activation"
         },
         "epicLens.gitlabHost": {
           "type": "string",

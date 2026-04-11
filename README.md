@@ -90,7 +90,7 @@ In Reviewing mode, only MRs where you are assigned as a reviewer are shown (mark
 | `epicLens.jiraScope` | `"mine"` | `"mine"` = your epics only, `"all"` = entire project |
 | `epicLens.jiraJql` | `""` | Custom JQL (overrides project and scope when set) |
 | `epicLens.hideDoneIssues` | `false` | Hide completed/done issues from the tree |
-| `epicLens.scanOnStartup` | `true` | Automatically fetch from Jira and GitLab when VS Code starts |
+| `epicLens.scanOnStartup` | `true` | Automatically fetch from Jira, GitLab, and GitHub when VS Code starts |
 | `epicLens.autoRefreshInterval` | `5` | Auto-refresh interval in minutes (0 to disable) |
 
 ### GitLab / GitHub
@@ -185,7 +185,7 @@ Each MR in the sidebar shows a status based on its current state:
 | Pipeline failed | :x: | CI/CD pipeline failed |
 | Pipeline running | :arrows_counterclockwise: | CI/CD pipeline in progress |
 | Has conflicts | :warning: | Merge conflicts need resolution |
-| Changes requested | :arrows_counterclockwise: | Reviewer requested changes (GitHub) |
+| Changes requested | :arrows_clockwise: | Reviewer requested changes (GitHub) |
 | Unresolved discussions | :speech_balloon: | Open review threads to address (GitLab) |
 | Stale | :alarm_clock: | MR/PR older than the configured `staleMRDays` threshold |
 
