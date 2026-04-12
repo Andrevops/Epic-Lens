@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.14.0
+
+### Features
+- add standalone Pipelines view for CI/CD on default branches
+
 ## 0.13.0
 
 ### Features
