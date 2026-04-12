@@ -114,24 +114,17 @@ export function activate(context: vscode.ExtensionContext): void {
       .getConfiguration()
       .get<boolean>(CONFIG.scanOnStartup) ?? true;
 
-  // Loading animation helpers
-  const withLoading = async (
-    view: vscode.TreeView<unknown>,
-    label: string,
-    fn: () => Promise<unknown>
-  ) => {
-    view.description = `$(sync~spin) ${label}`;
-    try {
-      await fn();
-    } finally {
-      view.description = undefined;
-    }
-  };
-
   const fetchAll = () => {
-    withLoading(treeView as vscode.TreeView<unknown>, "Fetching epics...", () => manager.scan());
-    withLoading(mrTreeView as vscode.TreeView<unknown>, "Fetching MRs...", () => mrTreeProvider.fetch());
-    withLoading(pipelineTreeView as vscode.TreeView<unknown>, "Fetching pipelines...", () => pipelineTreeProvider.fetch());
+    vscode.window.withProgress(
+      { location: vscode.ProgressLocation.Window, title: "Epic Lens: Loading..." },
+      async () => {
+        await Promise.all([
+          manager.scan(),
+          mrTreeProvider.fetch(),
+          pipelineTreeProvider.fetch(),
+        ]);
+      }
+    );
   };
 
   if (scanOnStartup) {
