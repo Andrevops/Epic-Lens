@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CMD, CTX, PIPELINE_STATUS_EMOJI, PIPELINE_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
-import type { StandalonePipelineData, PipelineStatusCategory, PipelineJobData, MrProviderFilter } from "../types";
+import type { StandalonePipelineData, PipelineStatusCategory, PipelineJobData, MrProviderFilter, PipelineScopeFilter } from "../types";
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
 
@@ -27,6 +27,7 @@ interface PipelineJobNode {
 type PipelineTreeNode = PipelineProjectNode | PipelineNode | PipelineJobNode;
 
 const PROVIDER_CYCLE: MrProviderFilter[] = ["both", "gitlab", "github"];
+const SCOPE_CYCLE: PipelineScopeFilter[] = ["mine", "all"];
 
 export class PipelineTreeProvider
   implements vscode.TreeDataProvider<PipelineTreeNode>
@@ -34,6 +35,7 @@ export class PipelineTreeProvider
   private _allPipelines: StandalonePipelineData[] = [];
   private _previousStatuses = new Map<string, PipelineStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
+  private _scopeFilter: PipelineScopeFilter = "mine";
   private _onDidChangeTreeData = new vscode.EventEmitter<
     PipelineTreeNode | undefined | void
   >();
@@ -53,6 +55,10 @@ export class PipelineTreeProvider
     return this._providerFilter;
   }
 
+  get scopeFilter(): PipelineScopeFilter {
+    return this._scopeFilter;
+  }
+
   cycleProvider(): MrProviderFilter {
     const idx = PROVIDER_CYCLE.indexOf(this._providerFilter);
     this._providerFilter = PROVIDER_CYCLE[(idx + 1) % PROVIDER_CYCLE.length];
@@ -66,13 +72,23 @@ export class PipelineTreeProvider
     return this._providerFilter;
   }
 
+  cycleScope(): PipelineScopeFilter {
+    const idx = SCOPE_CYCLE.indexOf(this._scopeFilter);
+    this._scopeFilter = SCOPE_CYCLE[(idx + 1) % SCOPE_CYCLE.length];
+    this._onDidChangeTreeData.fire();
+    // Re-fetch with new scope since the API filter changes
+    this.fetch();
+    return this._scopeFilter;
+  }
+
   async fetch(): Promise<number> {
+    const filterByUser = this._scopeFilter === "mine";
     const [gitlabPipelines, githubPipelines] = await Promise.all([
-      this._gitlabClient.fetchMyPipelines(this._output).catch((e) => {
+      this._gitlabClient.fetchMyPipelines(this._output, filterByUser).catch((e) => {
         this._output.appendLine(`  GitLab pipeline fetch failed: ${e}`);
         return [] as StandalonePipelineData[];
       }),
-      this._githubClient.fetchMyPipelines(this._output).catch((e) => {
+      this._githubClient.fetchMyPipelines(this._output, filterByUser).catch((e) => {
         this._output.appendLine(`  GitHub pipeline fetch failed: ${e}`);
         return [] as StandalonePipelineData[];
       }),

@@ -216,6 +216,12 @@
         "title": "Cycle Pipeline Provider: Both / GitLab / GitHub",
         "category": "Epic Lens",
         "icon": "$(layers)"
+      },
+      {
+        "command": "epicLens.cyclePipelineScope",
+        "title": "Cycle Pipeline Scope: Mine / All",
+        "category": "Epic Lens",
+        "icon": "$(account)"
       }
     ],
     "keybindings": [
@@ -336,6 +342,11 @@
           "command": "epicLens.cyclePipelineProvider",
           "when": "view == epicLens.pipelines",
           "group": "navigation@3"
+        },
+        {
+          "command": "epicLens.cyclePipelineScope",
+          "when": "view == epicLens.pipelines",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [

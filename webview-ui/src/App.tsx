@@ -137,7 +137,8 @@ export function App() {
     typeFilter: "all",
     hideDone: false,
   });
-  const [viewMode, setViewMode] = useState<"board" | "list">("board");
+  const [viewMode, setViewMode] = useState<"board" | "list" | "settings">("board");
+  const [settings, setSettings] = useState<Record<string, unknown>>({});
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
@@ -148,6 +149,8 @@ export function App() {
         setFilters(msg.filters);
       } else if (msg.type === "filtersChanged") {
         setFilters(msg.filters);
+      } else if (msg.type === "setSettings") {
+        setSettings(msg.settings);
       }
     };
     window.addEventListener("message", handler);
@@ -193,6 +196,12 @@ export function App() {
             onClick={() => setViewMode("list")}
           >
             List
+          </button>
+          <button
+            className={viewMode === "settings" ? "active" : ""}
+            onClick={() => setViewMode("settings")}
+          >
+            Settings
           </button>
         </div>
         <select
@@ -242,13 +251,18 @@ export function App() {
         <StatCard value={blocked} label="Blocked" />
       </div>
 
-      {viewMode === "board" ? (
-        <BoardView epics={epics} />
+      {viewMode === "settings" ? (
+        <SettingsView settings={settings} />
       ) : (
-        <ListView epics={epics} />
+        <>
+          {viewMode === "board" ? (
+            <BoardView epics={epics} />
+          ) : (
+            <ListView epics={epics} />
+          )}
+          {mrs.length > 0 && <MrSection mrs={mrs} />}
+        </>
       )}
-
-      {mrs.length > 0 && <MrSection mrs={mrs} />}
     </>
   );
 }
@@ -501,6 +515,148 @@ function MrCard({ mr }: { mr: MergeRequestData }) {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+/* ── Settings View ── */
+
+const SETTINGS_FIELDS: {
+  key: string;
+  label: string;
+  group: string;
+  type: "text" | "number" | "boolean" | "select";
+  options?: { value: string; label: string }[];
+  placeholder?: string;
+  description?: string;
+}[] = [
+  { key: "jiraBaseUrl", label: "Jira Base URL", group: "Jira", type: "text", placeholder: "https://yourorg.atlassian.net" },
+  { key: "jiraEmail", label: "Jira Email", group: "Jira", type: "text", placeholder: "you@example.com" },
+  { key: "jiraProject", label: "Jira Project Key", group: "Jira", type: "text", placeholder: "MYPROJ" },
+  { key: "jiraScope", label: "Jira Scope", group: "Jira", type: "select", options: [{ value: "mine", label: "Mine" }, { value: "all", label: "All" }] },
+  { key: "jiraJql", label: "Custom JQL", group: "Jira", type: "text", placeholder: "project = X AND issuetype = Epic", description: "Overrides project and scope when set" },
+  { key: "hideDoneIssues", label: "Hide Done Issues", group: "Jira", type: "boolean" },
+  { key: "gitlabHost", label: "GitLab Host", group: "GitLab / GitHub", type: "text", placeholder: "https://gitlab.com" },
+  { key: "githubHost", label: "GitHub API Host", group: "GitLab / GitHub", type: "text", placeholder: "https://api.github.com" },
+  { key: "autoRefreshInterval", label: "Auto-Refresh (minutes)", group: "Behavior", type: "number", description: "0 to disable" },
+  { key: "staleMRDays", label: "Stale MR Threshold (days)", group: "Behavior", type: "number", description: "0 to disable" },
+  { key: "scanOnStartup", label: "Fetch on Startup", group: "Behavior", type: "boolean" },
+];
+
+function SettingsView({ settings }: { settings: Record<string, unknown> }) {
+  const [local, setLocal] = useState<Record<string, unknown>>({});
+
+  useEffect(() => {
+    setLocal({ ...settings });
+  }, [settings]);
+
+  const handleChange = (key: string, value: unknown) => {
+    setLocal((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSave = () => {
+    // Only send fields that changed
+    const changed: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(local)) {
+      if (settings[key] !== value) {
+        changed[key] = value;
+      }
+    }
+    if (Object.keys(changed).length > 0) {
+      vscode.postMessage({ type: "updateSettings", settings: changed });
+    }
+  };
+
+  const groups = [...new Set(SETTINGS_FIELDS.map((f) => f.group))];
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      {groups.map((group) => (
+        <div key={group} className="epic-section">
+          <div className="epic-header">
+            <h2>{group}</h2>
+          </div>
+          {SETTINGS_FIELDS.filter((f) => f.group === group).map((field) => (
+            <div key={field.key} style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 12 }}>
+              <label style={{ minWidth: 180, fontWeight: 500 }}>{field.label}</label>
+              {field.type === "text" && (
+                <input
+                  type="text"
+                  value={(local[field.key] as string) ?? ""}
+                  placeholder={field.placeholder}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  style={{
+                    flex: 1,
+                    background: "var(--vscode-input-background)",
+                    color: "var(--vscode-input-foreground)",
+                    border: "1px solid var(--vscode-input-border)",
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                  }}
+                />
+              )}
+              {field.type === "number" && (
+                <input
+                  type="number"
+                  value={(local[field.key] as number) ?? 0}
+                  onChange={(e) => handleChange(field.key, parseInt(e.target.value, 10) || 0)}
+                  style={{
+                    width: 80,
+                    background: "var(--vscode-input-background)",
+                    color: "var(--vscode-input-foreground)",
+                    border: "1px solid var(--vscode-input-border)",
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                  }}
+                />
+              )}
+              {field.type === "boolean" && (
+                <input
+                  type="checkbox"
+                  checked={!!local[field.key]}
+                  onChange={(e) => handleChange(field.key, e.target.checked)}
+                />
+              )}
+              {field.type === "select" && (
+                <select
+                  value={(local[field.key] as string) ?? ""}
+                  onChange={(e) => handleChange(field.key, e.target.value)}
+                  style={{
+                    background: "var(--vscode-input-background)",
+                    color: "var(--vscode-input-foreground)",
+                    border: "1px solid var(--vscode-input-border)",
+                    padding: "4px 8px",
+                    borderRadius: 4,
+                  }}
+                >
+                  {field.options?.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              )}
+              {field.description && (
+                <span style={{ fontSize: "0.8em", opacity: 0.6 }}>{field.description}</span>
+              )}
+            </div>
+          ))}
+        </div>
+      ))}
+      <button
+        onClick={handleSave}
+        style={{
+          marginTop: 16,
+          padding: "8px 24px",
+          background: "var(--vscode-button-background)",
+          color: "var(--vscode-button-foreground)",
+          border: "none",
+          borderRadius: 4,
+          cursor: "pointer",
+          fontSize: "1em",
+          fontWeight: 600,
+        }}
+      >
+        Save Settings
+      </button>
     </div>
   );
 }

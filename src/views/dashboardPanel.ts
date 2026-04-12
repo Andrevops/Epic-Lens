@@ -2,7 +2,8 @@ import * as vscode from "vscode";
 import * as path from "path";
 import type { EpicManager } from "../services/epicManager";
 import type { MrTreeProvider } from "../providers/mrTreeProvider";
-import type { ExtensionMessage, WebviewMessage, MergeRequestData } from "../types";
+import { CONFIG } from "../constants";
+import type { ExtensionMessage, WebviewMessage, MergeRequestData, SettingsData } from "../types";
 
 export class DashboardPanel {
   public static currentPanel: DashboardPanel | undefined;
@@ -90,6 +91,7 @@ export class DashboardPanel {
     switch (msg.type) {
       case "ready":
         this._sendData();
+        this._sendSettings();
         break;
       case "refresh":
         this._manager.scan();
@@ -116,7 +118,56 @@ export class DashboardPanel {
           this._manager.toggleHideDone();
         }
         break;
+      case "updateSettings":
+        this._applySettings(msg.settings);
+        break;
     }
+  }
+
+  private _sendSettings(): void {
+    const cfg = vscode.workspace.getConfiguration();
+    const settings: SettingsData = {
+      jiraBaseUrl: cfg.get<string>(CONFIG.jiraBaseUrl) ?? "",
+      jiraEmail: cfg.get<string>(CONFIG.jiraEmail) ?? "",
+      jiraProject: cfg.get<string>(CONFIG.jiraProject) ?? "",
+      jiraScope: cfg.get<string>(CONFIG.jiraScope) ?? "mine",
+      jiraJql: cfg.get<string>(CONFIG.jiraJql) ?? "",
+      hideDoneIssues: cfg.get<boolean>(CONFIG.hideDoneIssues) ?? false,
+      scanOnStartup: cfg.get<boolean>(CONFIG.scanOnStartup) ?? true,
+      gitlabHost: cfg.get<string>(CONFIG.gitlabHost) ?? "https://gitlab.com",
+      githubHost: cfg.get<string>(CONFIG.githubHost) ?? "https://api.github.com",
+      autoRefreshInterval: cfg.get<number>(CONFIG.autoRefreshInterval) ?? 5,
+      staleMRDays: cfg.get<number>(CONFIG.staleMRDays) ?? 7,
+    };
+    this._postMessage({ type: "setSettings", settings });
+  }
+
+  private async _applySettings(
+    partial: Partial<SettingsData>
+  ): Promise<void> {
+    const cfg = vscode.workspace.getConfiguration();
+    const map: Record<string, string> = {
+      jiraBaseUrl: CONFIG.jiraBaseUrl,
+      jiraEmail: CONFIG.jiraEmail,
+      jiraProject: CONFIG.jiraProject,
+      jiraScope: CONFIG.jiraScope,
+      jiraJql: CONFIG.jiraJql,
+      hideDoneIssues: CONFIG.hideDoneIssues,
+      scanOnStartup: CONFIG.scanOnStartup,
+      gitlabHost: CONFIG.gitlabHost,
+      githubHost: CONFIG.githubHost,
+      autoRefreshInterval: CONFIG.autoRefreshInterval,
+      staleMRDays: CONFIG.staleMRDays,
+    };
+
+    for (const [key, value] of Object.entries(partial)) {
+      const configKey = map[key];
+      if (configKey && value !== undefined) {
+        await cfg.update(configKey, value, true);
+      }
+    }
+    vscode.window.showInformationMessage("Epic Lens: Settings saved");
+    this._sendSettings();
   }
 
   private _sendData(): void {

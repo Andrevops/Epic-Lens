@@ -53,9 +53,25 @@ export interface FilterState {
   hideDone: boolean;
 }
 
+/** Settings shape sent to the webview */
+export interface SettingsData {
+  jiraBaseUrl: string;
+  jiraEmail: string;
+  jiraProject: string;
+  jiraScope: string;
+  jiraJql: string;
+  hideDoneIssues: boolean;
+  scanOnStartup: boolean;
+  gitlabHost: string;
+  githubHost: string;
+  autoRefreshInterval: number;
+  staleMRDays: number;
+}
+
 /** Messages between extension and dashboard webview */
 export type ExtensionMessage =
   | { type: "setData"; epics: EpicData[]; filters: FilterState; mrs: MergeRequestData[] }
+  | { type: "setSettings"; settings: SettingsData }
   | { type: "refreshing" }
   | { type: "filtersChanged"; filters: FilterState };
 
@@ -65,7 +81,8 @@ export type WebviewMessage =
   | { type: "openInJira"; key: string }
   | { type: "copyKey"; key: string }
   | { type: "openMR"; url: string }
-  | { type: "setFilter"; filters: Partial<FilterState> };
+  | { type: "setFilter"; filters: Partial<FilterState> }
+  | { type: "updateSettings"; settings: Partial<SettingsData> };
 
 /* ── Merge Request / Pull Request types ── */
 
@@ -85,6 +102,7 @@ export type MrStatusCategory =
 export type MrProviderFilter = "both" | "gitlab" | "github";
 export type MrRole = "author" | "reviewer";
 export type MrScopeFilter = "authored" | "reviewing" | "all";
+export type PipelineScopeFilter = "mine" | "all";
 
 /** A single CI job (GitLab) or check run (GitHub) */
 export interface PipelineJobData {

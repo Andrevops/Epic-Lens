@@ -29,6 +29,7 @@ export const CMD = {
   refreshPipelines: "epicLens.refreshPipelines",
   openPipeline: "epicLens.openPipeline",
   cyclePipelineProvider: "epicLens.cyclePipelineProvider",
+  cyclePipelineScope: "epicLens.cyclePipelineScope",
 } as const;
 
 export const CONFIG = {
@@ -190,6 +191,11 @@ export const SCOPE_LABELS: Record<import("./types").MrScopeFilter, string> = {
   authored: "Authored by me",
   reviewing: "Reviewing",
   all: "All (authored + reviewing)",
+};
+
+export const PIPELINE_SCOPE_LABELS: Record<import("./types").PipelineScopeFilter, string> = {
+  mine: "My Pipelines",
+  all: "All Pipelines",
 };
 
 export function categorizeMrStatus(

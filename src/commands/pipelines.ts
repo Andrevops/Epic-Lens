@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { CMD, PROVIDER_LABELS } from "../constants";
+import { CMD, PROVIDER_LABELS, PIPELINE_SCOPE_LABELS } from "../constants";
 import type { PipelineTreeProvider } from "../providers/pipelineTreeProvider";
 import type { StandalonePipelineData } from "../types";
 
@@ -47,6 +47,16 @@ export function registerPipelineCommands(
       const next = pipelineTreeProvider.cycleProvider();
       vscode.window.showInformationMessage(
         `Epic Lens: Pipelines showing ${PROVIDER_LABELS[next]}`
+      );
+    })
+  );
+
+  // Cycle pipeline scope: mine → all
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.cyclePipelineScope, () => {
+      const next = pipelineTreeProvider.cycleScope();
+      vscode.window.showInformationMessage(
+        `Epic Lens: Pipelines showing ${PIPELINE_SCOPE_LABELS[next]}`
       );
     })
   );

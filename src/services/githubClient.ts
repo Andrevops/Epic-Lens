@@ -118,7 +118,8 @@ export class GitHubClient implements vscode.Disposable {
    * Fetch recent workflow runs on default branches triggered by the current user.
    */
   async fetchMyPipelines(
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    filterByUser: boolean = true
   ): Promise<StandalonePipelineData[]> {
     const { host, token } = await this._getCredentials();
     output.appendLine(
@@ -140,12 +141,13 @@ export class GitHubClient implements vscode.Disposable {
     output.appendLine(`  GitHub repos for pipelines: ${repos.length}`);
     if (repos.length === 0) return [];
 
-    // Fetch workflow runs per repo on default branch by current user
+    // Fetch workflow runs per repo on default branch, optionally by current user
+    const actor = filterByUser ? userData.login : undefined;
     const runResults = await Promise.allSettled(
       repos.map((repo) =>
         this._fetchWorkflowRuns(
           host, token, repo.owner.login, repo.name,
-          repo.default_branch, userData.login, output
+          repo.default_branch, actor, output
         )
       )
     );
@@ -199,10 +201,11 @@ export class GitHubClient implements vscode.Disposable {
     owner: string,
     repo: string,
     branch: string,
-    actor: string,
+    actor: string | undefined,
     output: vscode.OutputChannel
   ): Promise<GitHubWorkflowRun[]> {
-    const url = `${host}/repos/${owner}/${repo}/actions/runs?actor=${actor}&branch=${encodeURIComponent(branch)}&per_page=5`;
+    let url = `${host}/repos/${owner}/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=5`;
+    if (actor) url += `&actor=${encodeURIComponent(actor)}`;
     const resp = await this._fetch(url, token, output);
     if (!resp) return [];
     const data = (await resp.json()) as GitHubWorkflowRunsResponse;

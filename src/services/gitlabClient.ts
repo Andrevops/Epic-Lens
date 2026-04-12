@@ -121,7 +121,8 @@ export class GitLabClient implements vscode.Disposable {
    * Fetch recent pipelines on default branches triggered by the current user.
    */
   async fetchMyPipelines(
-    output: vscode.OutputChannel
+    output: vscode.OutputChannel,
+    filterByUser: boolean = true
   ): Promise<StandalonePipelineData[]> {
     const { host, token } = await this._getCredentials();
     output.appendLine(
@@ -143,11 +144,11 @@ export class GitLabClient implements vscode.Disposable {
     output.appendLine(`  GitLab projects for pipelines: ${projects.length}`);
     if (projects.length === 0) return [];
 
-    // Fetch pipelines per project on default branch by current user
+    // Fetch pipelines per project — optionally filtered by current user
     const pipelineResults = await Promise.allSettled(
       projects.map((project) =>
         this._fetchProjectPipelines(
-          host, token, project, user.username, output
+          host, token, project, filterByUser ? user.username : undefined, output
         )
       )
     );
@@ -202,12 +203,13 @@ export class GitLabClient implements vscode.Disposable {
     host: string,
     token: string,
     project: GitLabProject,
-    username: string,
+    username: string | undefined,
     output: vscode.OutputChannel
   ): Promise<GitLabPipeline[]> {
-    // Fetch recent pipelines for this project (any branch, any trigger)
-    // The username filter is optional — include pipelines triggered by merges/schedules too
-    const url = `${host}/api/v4/projects/${project.id}/pipelines?per_page=5&order_by=updated_at&sort=desc`;
+    let url = `${host}/api/v4/projects/${project.id}/pipelines?per_page=5&order_by=updated_at&sort=desc`;
+    if (username) {
+      url += `&username=${encodeURIComponent(username)}`;
+    }
     const response = await this._fetch(url, token, output);
     if (!response) return [];
     return (await response.json()) as GitLabPipeline[];
