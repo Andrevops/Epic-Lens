@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.18.1
+
+### Bug Fixes
+- await workspaceState persistence for dismissed pipelines
+
 ## 0.18.0
 
 ### Features
