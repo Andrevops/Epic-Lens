@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.20.0
+
+### Features
+- make pipeline scope (mine/all) a persistent setting on dashboard
+
 ## 0.19.2
 
 ### Other

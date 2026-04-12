@@ -2,7 +2,7 @@
   "name": "epic-lens",
   "displayName": "Epic Lens",
   "description": "Track Jira epics, GitLab MRs, and GitHub PRs in one sidebar — stay in control when AI helps you ship fast",
-  "version": "0.19.2",
+  "version": "0.20.0",
   "publisher": "andrevops-com",
   "license": "MIT",
   "icon": "resources/icons/icon.png",
@@ -470,7 +470,10 @@
         "epicLens.pipelineScope": {
           "type": "string",
           "default": "mine",
-          "enum": ["mine", "all"],
+          "enum": [
+            "mine",
+            "all"
+          ],
           "enumDescriptions": [
             "Only pipelines triggered by you",
             "All pipelines on your projects"
