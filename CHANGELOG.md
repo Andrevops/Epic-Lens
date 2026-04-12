@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.19.0
+
+### Features
+- cancel pipelines and hide canceled from the list
+
 ## 0.18.1
 
 ### Bug Fixes
