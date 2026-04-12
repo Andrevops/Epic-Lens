@@ -187,10 +187,15 @@ export class GitLabClient implements vscode.Disposable {
     token: string,
     output: vscode.OutputChannel
   ): Promise<GitLabProject[]> {
-    const url = `${host}/api/v4/projects?membership=true&order_by=last_activity_at&per_page=20`;
+    // Fetch up to 100 projects the user is a member of, sorted by recent activity
+    const url = `${host}/api/v4/projects?membership=true&order_by=last_activity_at&per_page=100&simple=true`;
     const response = await this._fetch(url, token, output);
     if (!response) return [];
-    return (await response.json()) as GitLabProject[];
+    const projects = (await response.json()) as GitLabProject[];
+    output.appendLine(
+      `  GitLab projects fetched: ${projects.length} — ${projects.map((p) => p.name).join(", ")}`
+    );
+    return projects;
   }
 
   private async _fetchProjectPipelines(
@@ -200,8 +205,9 @@ export class GitLabClient implements vscode.Disposable {
     username: string,
     output: vscode.OutputChannel
   ): Promise<GitLabPipeline[]> {
-    const ref = encodeURIComponent(project.default_branch);
-    const url = `${host}/api/v4/projects/${project.id}/pipelines?ref=${ref}&username=${username}&per_page=5&order_by=updated_at&sort=desc`;
+    // Fetch recent pipelines for this project (any branch, any trigger)
+    // The username filter is optional — include pipelines triggered by merges/schedules too
+    const url = `${host}/api/v4/projects/${project.id}/pipelines?per_page=5&order_by=updated_at&sort=desc`;
     const response = await this._fetch(url, token, output);
     if (!response) return [];
     return (await response.json()) as GitLabPipeline[];
