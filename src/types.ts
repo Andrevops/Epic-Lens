@@ -126,6 +126,98 @@ export interface MergeRequestData {
   status: MrStatusCategory;
 }
 
+/* ── Standalone Pipeline types ── */
+
+export type PipelineStatusCategory =
+  | "success"
+  | "failed"
+  | "running"
+  | "pending"
+  | "canceled"
+  | "skipped";
+
+/** A standalone pipeline (not attached to an MR) */
+export interface StandalonePipelineData {
+  provider: MrProvider;
+  id: number;
+  projectId: number;
+  projectPath: string;
+  projectName: string;
+  ref: string;
+  status: PipelineStatusCategory;
+  webUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  duration?: number;
+  jobs: PipelineJobData[];
+  failedJobs: PipelineJobData[];
+}
+
+/** Raw GitLab pipeline list item */
+export interface GitLabPipeline {
+  id: number;
+  project_id: number;
+  status: string;
+  ref: string;
+  web_url: string;
+  created_at: string;
+  updated_at: string;
+  duration: number | null;
+}
+
+/** Raw GitLab project (fields we use for pipelines) */
+export interface GitLabProject {
+  id: number;
+  name: string;
+  path_with_namespace: string;
+  default_branch: string;
+}
+
+/** Raw GitHub repo (fields we use for pipelines) */
+export interface GitHubRepo {
+  id: number;
+  name: string;
+  full_name: string;
+  owner: { login: string };
+  default_branch: string;
+}
+
+/** Raw GitHub workflow run */
+export interface GitHubWorkflowRun {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  head_branch: string;
+  created_at: string;
+  updated_at: string;
+  run_started_at: string | null;
+}
+
+/** Raw GitHub workflow runs API response */
+export interface GitHubWorkflowRunsResponse {
+  total_count: number;
+  workflow_runs: GitHubWorkflowRun[];
+}
+
+/** Raw GitHub workflow run job */
+export interface GitHubWorkflowJob {
+  id: number;
+  name: string;
+  status: string;
+  conclusion: string | null;
+  html_url: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+/** Raw GitHub workflow run jobs response */
+export interface GitHubWorkflowJobsResponse {
+  total_count: number;
+  jobs: GitHubWorkflowJob[];
+}
+
 /** Raw GitLab API merge request shape (fields we use) */
 export interface GitLabMR {
   id: number;

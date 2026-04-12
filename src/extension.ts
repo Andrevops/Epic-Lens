@@ -1,14 +1,16 @@
 import * as vscode from "vscode";
-import { VIEW_EPICS, VIEW_MRS, CONFIG, CTX } from "./constants";
+import { VIEW_EPICS, VIEW_MRS, VIEW_PIPELINES, CONFIG, CTX } from "./constants";
 import { EpicManager } from "./services/epicManager";
 import { EpicTreeProvider } from "./providers/epicTreeProvider";
 import { MrTreeProvider } from "./providers/mrTreeProvider";
+import { PipelineTreeProvider } from "./providers/pipelineTreeProvider";
 import { DashboardPanel } from "./views/dashboardPanel";
 import { registerScanCommands } from "./commands/scan";
 import { registerFilterCommands } from "./commands/filter";
 import { registerOpenCommands } from "./commands/open";
 import { registerCredentialCommands } from "./commands/credentials";
 import { registerMrCommands } from "./commands/gitlab";
+import { registerPipelineCommands } from "./commands/pipelines";
 import { JiraClient } from "./services/jiraClient";
 import { GitLabClient } from "./services/gitlabClient";
 import { GitHubClient } from "./services/githubClient";
@@ -37,6 +39,13 @@ export function activate(context: vscode.ExtensionContext): void {
     treeDataProvider: mrTreeProvider,
   });
 
+  // Pipeline TreeView
+  const pipelineTreeProvider = new PipelineTreeProvider(gitlabClient, githubClient, output);
+  const pipelineTreeView = vscode.window.createTreeView(VIEW_PIPELINES, {
+    treeDataProvider: pipelineTreeProvider,
+    showCollapseAll: true,
+  });
+
   // Status bar
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Left,
@@ -46,7 +55,7 @@ export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(statusBar);
 
   const refreshStatusBar = () =>
-    updateStatusBar(manager, mrTreeProvider, statusBar);
+    updateStatusBar(manager, mrTreeProvider, pipelineTreeProvider, statusBar);
 
   manager.onDidChangeEpics(() => {
     refreshStatusBar();
@@ -71,6 +80,14 @@ export function activate(context: vscode.ExtensionContext): void {
       : undefined;
   });
 
+  pipelineTreeProvider.onDidChangeTreeData(() => {
+    refreshStatusBar();
+    const pipelineCount = pipelineTreeProvider.pipelines.length;
+    pipelineTreeView.badge = pipelineCount > 0
+      ? { value: pipelineCount, tooltip: `${pipelineCount} recent pipeline${pipelineCount !== 1 ? "s" : ""}` }
+      : undefined;
+  });
+
   // Dashboard command
   context.subscriptions.push(
     vscode.commands.registerCommand("epicLens.openDashboard", () => {
@@ -84,10 +101,11 @@ export function activate(context: vscode.ExtensionContext): void {
   registerOpenCommands(context);
   registerCredentialCommands(context, jiraClient);
   registerMrCommands(context, gitlabClient, githubClient, mrTreeProvider);
+  registerPipelineCommands(context, pipelineTreeProvider);
 
   // Subscriptions
   context.subscriptions.push(
-    manager, jiraClient, gitlabClient, githubClient, treeView, mrTreeView, output
+    manager, jiraClient, gitlabClient, githubClient, treeView, mrTreeView, pipelineTreeView, output
   );
 
   // Auto-fetch on startup
@@ -100,6 +118,7 @@ export function activate(context: vscode.ExtensionContext): void {
     // Small delay to let workspace fully load
     setTimeout(() => manager.scan(), 1500);
     setTimeout(() => mrTreeProvider.fetch(), 2000);
+    setTimeout(() => pipelineTreeProvider.fetch(), 2500);
   }
 
   // Auto-refresh interval
@@ -117,6 +136,7 @@ export function activate(context: vscode.ExtensionContext): void {
         output.appendLine(`Auto-refresh triggered (every ${minutes}m)`);
         manager.scan();
         mrTreeProvider.fetch();
+        pipelineTreeProvider.fetch();
       }, ms);
       output.appendLine(`Auto-refresh set to ${minutes} minutes`);
     }
@@ -138,13 +158,18 @@ export function activate(context: vscode.ExtensionContext): void {
 function updateStatusBar(
   manager: EpicManager,
   mrTreeProvider: MrTreeProvider,
+  pipelineTreeProvider: PipelineTreeProvider,
   statusBar: vscode.StatusBarItem
 ): void {
   const epics = manager.epics;
   const orphans = manager.orphans;
   const mrCount = mrTreeProvider.mrs.length;
+  const pipelineCount = pipelineTreeProvider.pipelines.length;
+  const failedPipelines = pipelineTreeProvider.pipelines.filter(
+    (p) => p.status === "failed"
+  ).length;
 
-  if (epics.length === 0 && orphans.length === 0 && mrCount === 0) {
+  if (epics.length === 0 && orphans.length === 0 && mrCount === 0 && pipelineCount === 0) {
     statusBar.hide();
     return;
   }
@@ -176,6 +201,14 @@ function updateStatusBar(
     parts.push(`$(git-pull-request) ${mrCount} MR/PR`);
   }
 
+  if (pipelineCount > 0) {
+    if (failedPipelines > 0) {
+      parts.push(`$(error) ${failedPipelines} failed`);
+    } else {
+      parts.push(`$(play-circle) ${pipelineCount} pipelines`);
+    }
+  }
+
   statusBar.text = parts.join(" · ");
 
   const tooltipLines = ["Epic Lens: Click to open dashboard"];
@@ -190,6 +223,12 @@ function updateStatusBar(
     tooltipLines.push(
       "",
       `Open MRs/PRs: ${mrCount}`
+    );
+  }
+  if (pipelineCount > 0) {
+    tooltipLines.push(
+      "",
+      `Pipelines: ${pipelineCount}${failedPipelines > 0 ? ` (${failedPipelines} failed)` : ""}`
     );
   }
   statusBar.tooltip = tooltipLines.join("\n");

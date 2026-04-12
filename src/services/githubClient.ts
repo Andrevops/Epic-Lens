@@ -9,7 +9,14 @@ import type {
   GitHubReview,
   GitHubCheckRun,
   GitHubCheckRunsResponse,
+  GitHubRepo,
+  GitHubWorkflowRun,
+  GitHubWorkflowRunsResponse,
+  GitHubWorkflowJob,
+  GitHubWorkflowJobsResponse,
   MergeRequestData,
+  StandalonePipelineData,
+  PipelineStatusCategory,
   MrStatusCategory,
   PipelineJobData,
   PipelineDetails,
@@ -105,6 +112,184 @@ export class GitHubClient implements vscode.Disposable {
     return results
       .filter((r): r is PromiseFulfilledResult<MergeRequestData> => r.status === "fulfilled")
       .map((r) => r.value);
+  }
+
+  /**
+   * Fetch recent workflow runs on default branches triggered by the current user.
+   */
+  async fetchMyPipelines(
+    output: vscode.OutputChannel
+  ): Promise<StandalonePipelineData[]> {
+    const { host, token } = await this._getCredentials();
+    output.appendLine(
+      `  GitHub pipeline credentials — host: ${host ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`
+    );
+    if (!host || !token) {
+      output.appendLine("  GitHub: no credentials configured, skipping pipelines");
+      return [];
+    }
+
+    // Get current user
+    const userResp = await this._fetch(`${host}/user`, token, output);
+    if (!userResp) return [];
+    const userData = (await userResp.json()) as { login: string };
+    output.appendLine(`  GitHub pipeline user: ${userData.login}`);
+
+    // Get user's repos
+    const repos = await this._fetchUserRepos(host, token, output);
+    output.appendLine(`  GitHub repos for pipelines: ${repos.length}`);
+    if (repos.length === 0) return [];
+
+    // Fetch workflow runs per repo on default branch by current user
+    const runResults = await Promise.allSettled(
+      repos.map((repo) =>
+        this._fetchWorkflowRuns(
+          host, token, repo.owner.login, repo.name,
+          repo.default_branch, userData.login, output
+        )
+      )
+    );
+
+    // Flatten and sort by updated_at desc
+    const allRuns: { run: GitHubWorkflowRun; repo: GitHubRepo }[] = [];
+    for (let i = 0; i < repos.length; i++) {
+      const result = runResults[i];
+      if (result.status === "fulfilled") {
+        for (const run of result.value) {
+          allRuns.push({ run, repo: repos[i] });
+        }
+      }
+    }
+    allRuns.sort(
+      (a, b) => new Date(b.run.updated_at).getTime() - new Date(a.run.updated_at).getTime()
+    );
+
+    output.appendLine(`  GitHub total workflow runs found: ${allRuns.length}`);
+
+    // Fetch jobs for each run in parallel
+    const jobResults = await Promise.allSettled(
+      allRuns.map(({ run, repo }) =>
+        this._fetchWorkflowJobs(
+          host, token, repo.owner.login, repo.name, run.id, output
+        )
+      )
+    );
+
+    return allRuns.map(({ run, repo }, i) => {
+      const jobs =
+        jobResults[i].status === "fulfilled" ? jobResults[i].value : [];
+      return this._toStandalonePipelineFromRun(run, repo, jobs);
+    });
+  }
+
+  private async _fetchUserRepos(
+    host: string,
+    token: string,
+    output: vscode.OutputChannel
+  ): Promise<GitHubRepo[]> {
+    const url = `${host}/user/repos?sort=pushed&per_page=20&type=owner`;
+    const resp = await this._fetch(url, token, output);
+    if (!resp) return [];
+    return (await resp.json()) as GitHubRepo[];
+  }
+
+  private async _fetchWorkflowRuns(
+    host: string,
+    token: string,
+    owner: string,
+    repo: string,
+    branch: string,
+    actor: string,
+    output: vscode.OutputChannel
+  ): Promise<GitHubWorkflowRun[]> {
+    const url = `${host}/repos/${owner}/${repo}/actions/runs?actor=${actor}&branch=${encodeURIComponent(branch)}&per_page=5`;
+    const resp = await this._fetch(url, token, output);
+    if (!resp) return [];
+    const data = (await resp.json()) as GitHubWorkflowRunsResponse;
+    return data.workflow_runs ?? [];
+  }
+
+  private async _fetchWorkflowJobs(
+    host: string,
+    token: string,
+    owner: string,
+    repo: string,
+    runId: number,
+    output: vscode.OutputChannel
+  ): Promise<GitHubWorkflowJob[]> {
+    const url = `${host}/repos/${owner}/${repo}/actions/runs/${runId}/jobs?per_page=100`;
+    const resp = await this._fetch(url, token, output);
+    if (!resp) return [];
+    const data = (await resp.json()) as GitHubWorkflowJobsResponse;
+    return data.jobs ?? [];
+  }
+
+  private _toStandalonePipelineFromRun(
+    run: GitHubWorkflowRun,
+    repo: GitHubRepo,
+    jobs: GitHubWorkflowJob[]
+  ): StandalonePipelineData {
+    const mappedJobs: PipelineJobData[] = jobs.map((j) => {
+      let jobStatus: string;
+      if (j.status !== "completed") {
+        jobStatus = "running";
+      } else if (j.conclusion === "success") {
+        jobStatus = "success";
+      } else if (j.conclusion === "failure") {
+        jobStatus = "failed";
+      } else if (j.conclusion === "cancelled") {
+        jobStatus = "cancelled";
+      } else if (j.conclusion === "skipped") {
+        jobStatus = "skipped";
+      } else {
+        jobStatus = j.conclusion ?? "unknown";
+      }
+      const duration =
+        j.started_at && j.completed_at
+          ? Math.round(
+              (new Date(j.completed_at).getTime() -
+                new Date(j.started_at).getTime()) /
+                1000
+            )
+          : undefined;
+      return {
+        name: j.name,
+        status: jobStatus,
+        durationSeconds: duration,
+        webUrl: j.html_url,
+      };
+    });
+
+    let status: PipelineStatusCategory;
+    if (run.status !== "completed") {
+      status = "running";
+    } else if (run.conclusion === "success") {
+      status = "success";
+    } else if (run.conclusion === "failure") {
+      status = "failed";
+    } else if (run.conclusion === "cancelled") {
+      status = "canceled";
+    } else if (run.conclusion === "skipped") {
+      status = "skipped";
+    } else {
+      status = "pending";
+    }
+
+    return {
+      provider: "github",
+      id: run.id,
+      projectId: repo.id,
+      projectPath: repo.full_name,
+      projectName: repo.name,
+      ref: run.head_branch,
+      status,
+      webUrl: run.html_url,
+      createdAt: run.created_at,
+      updatedAt: run.updated_at,
+      duration: undefined,
+      jobs: mappedJobs,
+      failedJobs: mappedJobs.filter((j) => j.status === "failed"),
+    };
   }
 
   private async _fetchPRDetail(

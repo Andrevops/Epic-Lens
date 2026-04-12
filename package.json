@@ -37,6 +37,7 @@
   "activationEvents": [
     "onView:epicLens.epics",
     "onView:epicLens.mergeRequests",
+    "onView:epicLens.pipelines",
     "onStartupFinished"
   ],
   "main": "./dist/extension.js",
@@ -59,6 +60,10 @@
         {
           "id": "epicLens.mergeRequests",
           "name": "Merge Requests"
+        },
+        {
+          "id": "epicLens.pipelines",
+          "name": "Pipelines"
         }
       ]
     },
@@ -72,6 +77,11 @@
         "view": "epicLens.mergeRequests",
         "contents": "No merge requests found.\n[Fetch MRs / PRs](command:epicLens.fetchMRs)\n\n[Configure GitLab](command:epicLens.configureGitlab) · [Configure GitHub](command:epicLens.configureGithub)",
         "when": "!epicLens.hasMRs"
+      },
+      {
+        "view": "epicLens.pipelines",
+        "contents": "No pipelines found.\n[Fetch Pipelines](command:epicLens.fetchPipelines)\n\n[Configure GitLab](command:epicLens.configureGitlab) · [Configure GitHub](command:epicLens.configureGithub)",
+        "when": "!epicLens.hasPipelines"
       }
     ],
     "commands": [
@@ -182,6 +192,30 @@
         "title": "Configure GitHub Credentials",
         "category": "Epic Lens",
         "icon": "$(key)"
+      },
+      {
+        "command": "epicLens.fetchPipelines",
+        "title": "Fetch Pipelines",
+        "category": "Epic Lens",
+        "icon": "$(search)"
+      },
+      {
+        "command": "epicLens.refreshPipelines",
+        "title": "Refresh Pipelines",
+        "category": "Epic Lens",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "epicLens.openPipeline",
+        "title": "Open Pipeline in Browser",
+        "category": "Epic Lens",
+        "icon": "$(link-external)"
+      },
+      {
+        "command": "epicLens.cyclePipelineProvider",
+        "title": "Cycle Pipeline Provider: Both / GitLab / GitHub",
+        "category": "Epic Lens",
+        "icon": "$(layers)"
       }
     ],
     "keybindings": [
@@ -224,6 +258,11 @@
         "command": "epicLens.fetchMRs",
         "key": "alt+e m",
         "mac": "alt+e m"
+      },
+      {
+        "command": "epicLens.fetchPipelines",
+        "key": "alt+e p",
+        "mac": "alt+e p"
       }
     ],
     "menus": {
@@ -282,6 +321,21 @@
           "command": "epicLens.cycleMRScope",
           "when": "view == epicLens.mergeRequests",
           "group": "navigation@4"
+        },
+        {
+          "command": "epicLens.fetchPipelines",
+          "when": "view == epicLens.pipelines",
+          "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.refreshPipelines",
+          "when": "view == epicLens.pipelines",
+          "group": "navigation@2"
+        },
+        {
+          "command": "epicLens.cyclePipelineProvider",
+          "when": "view == epicLens.pipelines",
+          "group": "navigation@3"
         }
       ],
       "view/item/context": [
@@ -304,6 +358,11 @@
           "command": "epicLens.copyMRUrl",
           "when": "view == epicLens.mergeRequests && viewItem == mergeRequest",
           "group": "util@1"
+        },
+        {
+          "command": "epicLens.openPipeline",
+          "when": "view == epicLens.pipelines && viewItem == pipeline",
+          "group": "navigation@1"
         }
       ]
     },

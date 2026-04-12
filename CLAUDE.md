@@ -1,18 +1,19 @@
 # Epic Lens — VS Code Extension
 
 ## What this is
-A VS Code extension that gives developers visibility over their work when AI-assisted coding accelerates delivery. Fetches Jira epics/issues, GitLab merge requests, and GitHub pull requests via their REST APIs and displays them in a sidebar tree view and interactive dashboard. All data comes from Jira, GitLab, and GitHub APIs — there is no local file scanning.
+A VS Code extension that gives developers visibility over their work when AI-assisted coding accelerates delivery. Fetches Jira epics/issues, GitLab merge requests, GitHub pull requests, and CI/CD pipelines via their REST APIs and displays them in sidebar tree views and an interactive dashboard. All data comes from Jira, GitLab, and GitHub APIs — there is no local file scanning.
 
 ## Architecture
 - `src/extension.ts` — Activation, service wiring, status bar
 - `src/services/jiraClient.ts` — Jira REST API client (search/jql endpoint, cursor-based pagination)
-- `src/services/gitlabClient.ts` — GitLab REST API client (MR list, approvals, 3-tier token resolution)
-- `src/services/githubClient.ts` — GitHub REST API client (PR search, details, reviews, 3-tier token resolution)
+- `src/services/gitlabClient.ts` — GitLab REST API client (MR list, approvals, standalone pipelines, 3-tier token resolution)
+- `src/services/githubClient.ts` — GitHub REST API client (PR search, details, reviews, workflow runs, 3-tier token resolution)
 - `src/services/epicManager.ts` — Core state: epics, orphan issues, filters, config watchers
 - `src/providers/epicTreeProvider.ts` — TreeDataProvider for the sidebar (epics + orphans)
 - `src/providers/mrTreeProvider.ts` — TreeDataProvider for GitLab MRs + GitHub PRs (grouped by project, provider cycling)
+- `src/providers/pipelineTreeProvider.ts` — TreeDataProvider for standalone CI/CD pipelines (3-level: project > pipeline > job)
 - `src/providers/filterProvider.ts` — QuickPick UI for status/type filters
-- `src/commands/` — Command registrations (scan, filter, open, credentials, gitlab)
+- `src/commands/` — Command registrations (scan, filter, open, credentials, gitlab, pipelines)
 - `src/views/dashboardPanel.ts` — Webview panel with inline HTML/JS + React build fallback
 - `src/constants.ts` — Config keys, status mappings, context keys, CMD constants
 - `src/types.ts` — TypeScript interfaces for Jira/GitLab data and extension messages
@@ -38,6 +39,15 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 8. Scope cycling button: Authored → Reviewing → All (reviewer MRs fetched via GitLab `reviewer_id` / GitHub `review-requested`)
 9. Stale MR detection compares `created_at` against `staleMRDays` threshold; stale MRs show ⏰ + age
 10. Status change detection diffs previous vs current MR statuses and fires toast notifications with "Open" action
+
+### Standalone Pipelines
+1. `PipelineTreeProvider.fetch()` calls both `GitLabClient.fetchMyPipelines()` and `GitHubClient.fetchMyPipelines()` in parallel
+2. GitLab: fetches user's projects (`GET /projects?membership=true`), then per project `GET /projects/:id/pipelines?ref=<default_branch>&username=<user>&per_page=5`, then jobs per pipeline
+3. GitHub: fetches user's repos (`GET /user/repos?sort=pushed`), then per repo `GET /repos/:owner/:repo/actions/runs?actor=<user>&branch=<default_branch>&per_page=5`, then jobs per run
+4. Results flattened, sorted by `updatedAt` desc, rendered in 3-level tree: Project > Pipeline > Job
+5. Provider cycling button: Both → GitLab → GitHub → Both
+6. Status change detection fires toast notifications when pipeline status transitions (e.g. running → failed)
+7. All clicks open pipeline/job in browser
 
 ### Jira-MR Linking
 1. After MR/PR fetch, branch names are parsed for Jira issue keys (regex: project key + `-` + number)
@@ -66,7 +76,9 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - No local file scanning — all data sourced from Jira/GitLab APIs
 - Auto-refresh uses `setInterval` gated by `autoRefreshInterval` config; timer resets on manual fetch or config change
 - Jira-MR linking parses branch names with regex, not commit messages or MR descriptions
-- Status change notifications compare serialized MR status maps between fetch cycles
+- Status change notifications compare serialized MR/pipeline status maps between fetch cycles
+- Standalone pipelines query user's projects/repos (top 20 by activity) and fetch 5 pipelines per project on default branch
+- GitLab pipeline user filtering uses `username` param; GitHub uses `actor` param on workflow runs API
 
 ## Config settings
 - `epicLens.jiraBaseUrl` — Jira Cloud instance URL
@@ -94,4 +106,4 @@ make release               # auto-bump, build, package .vsix
 Push tag to trigger GitHub Actions release workflow (`publish.yml`).
 
 ## Keyboard shortcuts
-All use `Alt+E` chord prefix: `S` scan, `R` refresh, `D` dashboard, `F` filter status, `T` filter type, `H` hide done, `C` clear filters, `M` fetch merge requests.
+All use `Alt+E` chord prefix: `S` scan, `R` refresh, `D` dashboard, `F` filter status, `T` filter type, `H` hide done, `C` clear filters, `M` fetch merge requests, `P` fetch pipelines.

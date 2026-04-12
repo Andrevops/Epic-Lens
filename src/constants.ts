@@ -2,6 +2,7 @@ export const EXTENSION_ID = "epicLens";
 
 export const VIEW_EPICS = "epicLens.epics";
 export const VIEW_MRS = "epicLens.mergeRequests";
+export const VIEW_PIPELINES = "epicLens.pipelines";
 
 export const CMD = {
   scan: "epicLens.scan",
@@ -23,6 +24,11 @@ export const CMD = {
   configureGithub: "epicLens.configureGithub",
   cycleMRProvider: "epicLens.cycleMRProvider",
   cycleMRScope: "epicLens.cycleMRScope",
+  // Pipeline commands
+  fetchPipelines: "epicLens.fetchPipelines",
+  refreshPipelines: "epicLens.refreshPipelines",
+  openPipeline: "epicLens.openPipeline",
+  cyclePipelineProvider: "epicLens.cyclePipelineProvider",
 } as const;
 
 export const CONFIG = {
@@ -47,6 +53,7 @@ export const CTX = {
   hasFilters: "epicLens.hasFilters",
   hideDone: "epicLens.hideDone",
   hasMRs: "epicLens.hasMRs",
+  hasPipelines: "epicLens.hasPipelines",
 } as const;
 
 export const SECRET_KEY_TOKEN = "epicLens.jiraToken";
@@ -143,6 +150,28 @@ export const MR_STATUS_LABELS: Record<MrStatusCategory, string> = {
   has_conflicts: "Has conflicts",
   changes_requested: "Changes requested",
   discussions_open: "Unresolved discussions",
+};
+
+/* ── Pipeline status helpers ── */
+
+import type { PipelineStatusCategory } from "./types";
+
+export const PIPELINE_STATUS_EMOJI: Record<PipelineStatusCategory, string> = {
+  success: "✅",
+  failed: "❌",
+  running: "🔄",
+  pending: "⏳",
+  canceled: "⏹️",
+  skipped: "⏭️",
+};
+
+export const PIPELINE_STATUS_LABELS: Record<PipelineStatusCategory, string> = {
+  success: "Passed",
+  failed: "Failed",
+  running: "Running",
+  pending: "Pending",
+  canceled: "Canceled",
+  skipped: "Skipped",
 };
 
 export const PROVIDER_LABELS: Record<import("./types").MrProviderFilter, string> = {

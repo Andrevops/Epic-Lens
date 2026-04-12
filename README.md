@@ -12,6 +12,7 @@ Epic Lens gives you that visibility. It pulls your Jira epics, GitLab merge requ
 
 - **Sidebar tree view** — Epics with collapsible child issues, standalone issues listed below
 - **Merge request tracking** — See all your open GitLab MRs and GitHub PRs with approval, pipeline, and conflict status
+- **Pipeline monitoring** — Dedicated Pipelines view showing your recent CI/CD pipelines on default branches, with expandable job details
 - **Provider cycling** — Toggle between Both / GitLab / GitHub with a single toolbar button
 - **Dashboard** — Board and list views with status columns, progress bars, and stats
 - **Live Jira data** — Pulls real statuses, assignees, and priorities from the Jira REST API
@@ -22,7 +23,7 @@ Epic Lens gives you that visibility. It pulls your Jira epics, GitLab merge requ
 - **Auto-refresh** — Periodic re-fetch of epics and MRs on a configurable interval (default 5 min)
 - **Stale MR highlighting** — MRs older than a configurable threshold show a ⏰ indicator with age
 - **Reviewer view** — See MRs where you are assigned as reviewer; cycle between Authored / Reviewing / All scopes
-- **Status change notifications** — Toast alerts when an MR/PR status changes between fetches, with an "Open" button
+- **Status change notifications** — Toast alerts when an MR/PR or pipeline status changes between fetches, with an "Open" button
 - **Jira-MR linking** — Automatically links MRs to Jira issues by parsing issue keys from branch names (e.g. `feat/DX-419-foo` → DX-419). Linked issues show a 🔗 count; tooltips show MR details
 - **MR/PR dashboard section** — The dashboard now includes a Merge Requests section below the Kanban board with status colors, stale flags, and reviewer tags
 
@@ -71,6 +72,17 @@ A second toolbar button cycles the MR scope:
 **Authored** → **Reviewing** → **All** → **Authored** ...
 
 In Reviewing mode, only MRs where you are assigned as a reviewer are shown (marked with 📋). In All mode, both authored and reviewer MRs are shown.
+
+### Pipelines View
+
+The Pipelines view shows your recent CI/CD pipelines running on default branches (e.g. `main`), independent of any open MR. This is useful for monitoring post-merge pipelines.
+
+- Fetches the 5 most recent pipelines per project that you triggered
+- Queries your GitLab projects (by membership) and GitHub repos (by ownership)
+- Pipelines are expandable to show individual job details with status and duration
+- Provider cycling works the same as for MRs: **Both** → **GitLab** → **GitHub**
+- Status change notifications fire when a pipeline transitions (e.g. running → failed)
+- Included in auto-refresh alongside epics and MRs
 
 ### Generating a Jira API Token
 
@@ -134,6 +146,7 @@ All shortcuts use `Alt+E` as a chord prefix:
 | `Alt+E H` | Toggle Hide Done |
 | `Alt+E C` | Clear All Filters |
 | `Alt+E M` | Fetch Merge Requests |
+| `Alt+E P` | Fetch Pipelines |
 
 ## Commands
 
@@ -157,6 +170,10 @@ All shortcuts use `Alt+E` as a chord prefix:
 | Epic Lens: Copy MR/PR URL | Copy the URL to clipboard |
 | Epic Lens: Configure GitLab Credentials | Guided setup for GitLab connection |
 | Epic Lens: Configure GitHub Credentials | Guided setup for GitHub connection |
+| Epic Lens: Fetch Pipelines | Pull recent pipelines from GitLab and GitHub |
+| Epic Lens: Refresh Pipelines | Re-fetch pipeline statuses |
+| Epic Lens: Cycle Pipeline Provider | Toggle pipeline view between Both / GitLab / GitHub |
+| Epic Lens: Open Pipeline in Browser | Open the selected pipeline in your browser |
 
 ## Status Categories
 

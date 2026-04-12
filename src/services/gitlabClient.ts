@@ -6,7 +6,11 @@ import { CONFIG, SECRET_KEY_GITLAB_TOKEN, categorizeMrStatus } from "../constant
 import type {
   GitLabMR,
   GitLabApprovalResponse,
+  GitLabPipeline,
+  GitLabProject,
   MergeRequestData,
+  StandalonePipelineData,
+  PipelineStatusCategory,
   PipelineJobData,
   PipelineDetails,
 } from "../types";
@@ -111,6 +115,136 @@ export class GitLabClient implements vscode.Disposable {
           : [];
       return this._toMergeRequestData(raw, approvals, role, jobs);
     });
+  }
+
+  /**
+   * Fetch recent pipelines on default branches triggered by the current user.
+   */
+  async fetchMyPipelines(
+    output: vscode.OutputChannel
+  ): Promise<StandalonePipelineData[]> {
+    const { host, token } = await this._getCredentials();
+    output.appendLine(
+      `  GitLab pipeline credentials — host: ${host ? "set" : "MISSING"}, token: ${token ? "set" : "MISSING"}`
+    );
+    if (!host || !token) {
+      output.appendLine("  GitLab: no credentials configured, skipping pipelines");
+      return [];
+    }
+
+    // Get current user
+    const userResp = await this._fetch(`${host}/api/v4/user`, token, output);
+    if (!userResp) return [];
+    const user = (await userResp.json()) as { username: string };
+    output.appendLine(`  GitLab pipeline user: ${user.username}`);
+
+    // Get user's active projects
+    const projects = await this._fetchProjects(host, token, output);
+    output.appendLine(`  GitLab projects for pipelines: ${projects.length}`);
+    if (projects.length === 0) return [];
+
+    // Fetch pipelines per project on default branch by current user
+    const pipelineResults = await Promise.allSettled(
+      projects.map((project) =>
+        this._fetchProjectPipelines(
+          host, token, project, user.username, output
+        )
+      )
+    );
+
+    // Flatten and sort by updated_at desc
+    const allPipelines: { raw: GitLabPipeline; project: GitLabProject }[] = [];
+    for (let i = 0; i < projects.length; i++) {
+      const result = pipelineResults[i];
+      if (result.status === "fulfilled") {
+        for (const raw of result.value) {
+          allPipelines.push({ raw, project: projects[i] });
+        }
+      }
+    }
+    allPipelines.sort(
+      (a, b) => new Date(b.raw.updated_at).getTime() - new Date(a.raw.updated_at).getTime()
+    );
+
+    output.appendLine(`  GitLab total pipelines found: ${allPipelines.length}`);
+
+    // Fetch jobs for each pipeline in parallel
+    const jobResults = await Promise.allSettled(
+      allPipelines.map(({ raw, project }) =>
+        this._fetchPipelineJobs(host, token, project.id, raw.id, output)
+      )
+    );
+
+    return allPipelines.map(({ raw, project }, i) => {
+      const jobs =
+        jobResults[i].status === "fulfilled" ? jobResults[i].value : [];
+      return this._toStandalonePipelineData(raw, project, jobs);
+    });
+  }
+
+  private async _fetchProjects(
+    host: string,
+    token: string,
+    output: vscode.OutputChannel
+  ): Promise<GitLabProject[]> {
+    const url = `${host}/api/v4/projects?membership=true&order_by=last_activity_at&per_page=20`;
+    const response = await this._fetch(url, token, output);
+    if (!response) return [];
+    return (await response.json()) as GitLabProject[];
+  }
+
+  private async _fetchProjectPipelines(
+    host: string,
+    token: string,
+    project: GitLabProject,
+    username: string,
+    output: vscode.OutputChannel
+  ): Promise<GitLabPipeline[]> {
+    const ref = encodeURIComponent(project.default_branch);
+    const url = `${host}/api/v4/projects/${project.id}/pipelines?ref=${ref}&username=${username}&per_page=5&order_by=updated_at&sort=desc`;
+    const response = await this._fetch(url, token, output);
+    if (!response) return [];
+    return (await response.json()) as GitLabPipeline[];
+  }
+
+  private _toStandalonePipelineData(
+    raw: GitLabPipeline,
+    project: GitLabProject,
+    jobs: { name: string; stage: string; status: string; duration: number | null; web_url: string }[]
+  ): StandalonePipelineData {
+    const mappedJobs: PipelineJobData[] = jobs.map((j) => ({
+      name: j.name,
+      stage: j.stage,
+      status: j.status,
+      durationSeconds: j.duration ?? undefined,
+      webUrl: j.web_url,
+    }));
+
+    const statusMap: Record<string, PipelineStatusCategory> = {
+      success: "success",
+      failed: "failed",
+      running: "running",
+      pending: "pending",
+      canceled: "canceled",
+      cancelled: "canceled",
+      skipped: "skipped",
+    };
+
+    return {
+      provider: "gitlab",
+      id: raw.id,
+      projectId: project.id,
+      projectPath: project.path_with_namespace,
+      projectName: project.name,
+      ref: raw.ref,
+      status: statusMap[raw.status] ?? "pending",
+      webUrl: raw.web_url,
+      createdAt: raw.created_at,
+      updatedAt: raw.updated_at,
+      duration: raw.duration ?? undefined,
+      jobs: mappedJobs,
+      failedJobs: mappedJobs.filter((j) => j.status === "failed"),
+    };
   }
 
   private async _fetchApprovals(
