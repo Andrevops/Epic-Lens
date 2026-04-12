@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.15.3
+
+### Bug Fixes
+- hide failed pipelines that are superseded by a newer success
+
 ## 0.15.2
 
 ### Bug Fixes
