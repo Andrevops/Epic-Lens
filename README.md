@@ -12,9 +12,10 @@ Epic Lens gives you that visibility. It pulls your Jira epics, GitLab merge requ
 
 - **Sidebar tree view** — Epics with collapsible child issues, standalone issues listed below
 - **Merge request tracking** — See all your open GitLab MRs and GitHub PRs with approval, pipeline, and conflict status
-- **Pipeline monitoring** — Dedicated Pipelines view showing recent CI/CD pipelines on default branches, grouped by project, with expandable job details, dismiss/cancel actions, and scope toggle
+- **Pipeline monitoring** — Dedicated Pipelines view showing recent CI/CD pipelines on default branches, grouped by project, with expandable job details, cancel action, and configurable scope
 - **Provider cycling** — Toggle between Both / GitLab / GitHub with a single toolbar button
-- **Dashboard** — Board, list, and settings views with status columns, progress bars, stats, and in-dashboard configuration
+- **Dashboard** — Board, List, and Settings tabs with status columns, progress bars, stats, and in-dashboard configuration
+- **Loading animations** — Native VS Code notification toasts with spinners on all fetch/refresh commands; dashboard shows a blurred overlay spinner during load and refresh
 - **Live Jira data** — Pulls real statuses, assignees, and priorities from the Jira REST API
 - **Scope filter** — Show only your epics (`mine`) or everything in the project (`all`)
 - **Status/type filters** — Filter by status category, issue type, or hide done issues
@@ -82,9 +83,8 @@ The Pipelines view shows your recent CI/CD pipelines running on default branches
 - Pipelines are always grouped by project with provider icons; each pipeline description shows project name and time ago
 - Pipelines are expandable to show individual job details with status and duration
 - Provider cycling works the same as for MRs: **Both** → **GitLab** → **GitHub**
-- Scope cycling: **Mine** (only pipelines you triggered) → **All** (all pipelines on default branches)
-- **Dismiss pipeline** — Right-click a pipeline and select "Dismiss Pipeline" to hide it from the tree. Dismissed pipelines are persisted in workspace state and auto-pruned when they age out of the API. Restore all dismissed pipelines from the overflow menu (⋯)
-- **Cancel pipeline** — Right-click a running or pending pipeline and select "Cancel Pipeline" (with confirmation). Calls the GitLab/GitHub cancel APIs
+- Scope: configurable via `epicLens.pipelineScope` — **Mine** (only pipelines you triggered) or **All** (all pipelines on default branches). Also toggleable from the toolbar or the dashboard Settings tab
+- **Cancel pipeline** — Right-click a running or pending pipeline and select "Cancel Pipeline" (with confirmation), or use the inline cancel action. Calls the GitLab/GitHub cancel APIs
 - Canceled and successful pipelines are automatically filtered out of the tree
 - Pipeline max age: only pipelines created within the last N days are fetched (default 7, configurable via `epicLens.pipelineMaxAgeDays`)
 - Status change notifications fire when a pipeline transitions (e.g. running → failed)
@@ -123,6 +123,7 @@ The dashboard includes a third tab (**Board** / **List** / **Settings**) that le
 | `epicLens.githubHost` | `"https://api.github.com"` | GitHub API URL (for GitHub Enterprise, e.g. `https://github.example.com/api/v3`) |
 | `epicLens.staleMRDays` | `7` | Flag MRs older than this many days as stale with ⏰ indicator (0 to disable) |
 | `epicLens.pipelineMaxAgeDays` | `7` | Only show pipelines created within this many days (minimum 1) |
+| `epicLens.pipelineScope` | `"mine"` | `"mine"` = your pipelines only, `"all"` = all pipelines on your projects |
 
 ### Authentication
 
@@ -187,8 +188,6 @@ All shortcuts use `Alt+E` as a chord prefix:
 | Epic Lens: Cycle Pipeline Scope | Toggle pipeline scope between Mine / All |
 | Epic Lens: Open Pipeline in Browser | Open the selected pipeline in your browser |
 | Epic Lens: Cancel Pipeline | Cancel a running or pending pipeline (with confirmation) |
-| Epic Lens: Dismiss Pipeline | Hide a pipeline from the tree (persisted per workspace) |
-| Epic Lens: Restore Dismissed Pipelines | Restore all previously dismissed pipelines |
 
 ## Status Categories
 

@@ -48,11 +48,10 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 5. Results always grouped by project with provider icon; pipeline description shows project name + time ago
 6. Canceled and successful pipelines filtered out of the tree
 7. Provider cycling button: Both → GitLab → GitHub → Both
-8. Scope cycling button: Mine → All (Mine filters by current user, All shows all pipelines on default branches)
-9. Dismiss pipeline: right-click → Dismiss; persisted in `workspaceState`, auto-pruned when pipeline ages out of API; restore via overflow menu
-10. Cancel pipeline: right-click → Cancel Pipeline (with confirmation); calls GitLab `POST /projects/:id/pipelines/:id/cancel` / GitHub `POST /repos/:owner/:repo/actions/runs/:id/cancel`
-11. Status change detection fires toast notifications when pipeline status transitions (e.g. running → failed)
-12. All clicks open pipeline/job in browser
+8. Scope controlled by `epicLens.pipelineScope` config setting: `"mine"` (filters by current user) or `"all"` (all pipelines on default branches). Also cyclable from toolbar button
+9. Cancel pipeline: inline action or right-click → Cancel Pipeline (with confirmation); calls GitLab `POST /projects/:id/pipelines/:id/cancel` / GitHub `POST /repos/:owner/:repo/actions/runs/:id/cancel`
+10. Status change detection fires toast notifications when pipeline status transitions (e.g. running → failed)
+11. All clicks open pipeline/job in browser
 
 ### Jira-MR Linking
 1. After MR/PR fetch, branch names are parsed for Jira issue keys (regex: project key + `-` + number)
@@ -89,8 +88,7 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - Status change notifications compare serialized MR/pipeline status maps between fetch cycles
 - Standalone pipelines query user's projects/repos (top 20 by activity) and fetch 5 pipelines per project on default branch
 - GitLab pipeline user filtering uses `username` param; GitHub uses `actor` param on workflow runs API
-- Dismissed pipelines stored in `workspaceState` (per-workspace persistence); auto-pruned when the pipeline ages out of the API response
-- Pipeline cancel uses GitLab pipeline cancel API and GitHub workflow run cancel API with user confirmation
+- Pipeline cancel uses GitLab pipeline cancel API and GitHub workflow run cancel API with user confirmation; cancel is available as an inline action on pipeline items
 - Dashboard has 3 tabs: Board, List, Settings — Settings tab exposes all configuration in a webview form with a Save button
 
 ## Config settings
@@ -106,6 +104,7 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - `epicLens.autoRefreshInterval` — Auto-refresh interval in minutes (default: `5`, `0` to disable)
 - `epicLens.staleMRDays` — Flag MRs older than N days as stale (default: `7`, `0` to disable)
 - `epicLens.pipelineMaxAgeDays` — Only fetch pipelines within N days (default: `7`, minimum `1`)
+- `epicLens.pipelineScope` — `"mine"` (default) or `"all"` — which pipelines to show
 
 ## Build
 ```bash
