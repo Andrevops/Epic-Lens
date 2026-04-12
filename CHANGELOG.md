@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.15.2
+
+### Bug Fixes
+- always group pipelines by project and show repo name on each item
+
 ## 0.15.1
 
 ### Bug Fixes
