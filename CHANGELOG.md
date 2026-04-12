@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.21.0
+
+### Features
+- add loading animations to sidebar views and dashboard
+
 ## 0.20.0
 
 ### Features
