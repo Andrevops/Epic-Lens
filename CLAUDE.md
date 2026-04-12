@@ -44,10 +44,15 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 1. `PipelineTreeProvider.fetch()` calls both `GitLabClient.fetchMyPipelines()` and `GitHubClient.fetchMyPipelines()` in parallel
 2. GitLab: fetches user's projects (`GET /projects?membership=true`), then per project `GET /projects/:id/pipelines?ref=<default_branch>&username=<user>&per_page=5`, then jobs per pipeline
 3. GitHub: fetches user's repos (`GET /user/repos?sort=pushed`), then per repo `GET /repos/:owner/:repo/actions/runs?actor=<user>&branch=<default_branch>&per_page=5`, then jobs per run
-4. Results flattened, sorted by `updatedAt` desc, rendered in 3-level tree: Project > Pipeline > Job
-5. Provider cycling button: Both → GitLab → GitHub → Both
-6. Status change detection fires toast notifications when pipeline status transitions (e.g. running → failed)
-7. All clicks open pipeline/job in browser
+4. `pipelineMaxAgeDays` setting applied at API level — only pipelines within N days are fetched
+5. Results always grouped by project with provider icon; pipeline description shows project name + time ago
+6. Canceled and successful pipelines filtered out of the tree
+7. Provider cycling button: Both → GitLab → GitHub → Both
+8. Scope cycling button: Mine → All (Mine filters by current user, All shows all pipelines on default branches)
+9. Dismiss pipeline: right-click → Dismiss; persisted in `workspaceState`, auto-pruned when pipeline ages out of API; restore via overflow menu
+10. Cancel pipeline: right-click → Cancel Pipeline (with confirmation); calls GitLab `POST /projects/:id/pipelines/:id/cancel` / GitHub `POST /repos/:owner/:repo/actions/runs/:id/cancel`
+11. Status change detection fires toast notifications when pipeline status transitions (e.g. running → failed)
+12. All clicks open pipeline/job in browser
 
 ### Jira-MR Linking
 1. After MR/PR fetch, branch names are parsed for Jira issue keys (regex: project key + `-` + number)
@@ -59,6 +64,11 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 1. `dashboardPanel.ts` receives MR/PR data alongside epic data via webview messages
 2. MR cards rendered below the Kanban board, grouped by project with status colors
 3. Cards include stale flags (⏰) and reviewer tags (📋) when applicable
+
+### Dashboard Settings Tab
+1. Third tab in the dashboard (Board / List / Settings)
+2. Renders form controls for all `epicLens.*` configuration settings (Jira, GitLab/GitHub hosts, behavior)
+3. Save button writes changes to VS Code workspace configuration
 
 ## Key decisions
 - Jira API v3 `search/jql` endpoint (the old `/search` was removed by Atlassian)
@@ -79,6 +89,9 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - Status change notifications compare serialized MR/pipeline status maps between fetch cycles
 - Standalone pipelines query user's projects/repos (top 20 by activity) and fetch 5 pipelines per project on default branch
 - GitLab pipeline user filtering uses `username` param; GitHub uses `actor` param on workflow runs API
+- Dismissed pipelines stored in `workspaceState` (per-workspace persistence); auto-pruned when the pipeline ages out of the API response
+- Pipeline cancel uses GitLab pipeline cancel API and GitHub workflow run cancel API with user confirmation
+- Dashboard has 3 tabs: Board, List, Settings — Settings tab exposes all configuration in a webview form with a Save button
 
 ## Config settings
 - `epicLens.jiraBaseUrl` — Jira Cloud instance URL
@@ -92,6 +105,7 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - `epicLens.githubHost` — GitHub API URL (default: `https://api.github.com`)
 - `epicLens.autoRefreshInterval` — Auto-refresh interval in minutes (default: `5`, `0` to disable)
 - `epicLens.staleMRDays` — Flag MRs older than N days as stale (default: `7`, `0` to disable)
+- `epicLens.pipelineMaxAgeDays` — Only fetch pipelines within N days (default: `7`, minimum `1`)
 
 ## Build
 ```bash
