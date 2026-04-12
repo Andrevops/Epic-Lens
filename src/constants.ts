@@ -49,6 +49,7 @@ export const CONFIG = {
   // Behavior
   autoRefreshInterval: "epicLens.autoRefreshInterval",
   staleMRDays: "epicLens.staleMRDays",
+  pipelineMaxAgeDays: "epicLens.pipelineMaxAgeDays",
 } as const;
 
 export const CTX = {

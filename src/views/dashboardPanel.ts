@@ -138,6 +138,7 @@ export class DashboardPanel {
       githubHost: cfg.get<string>(CONFIG.githubHost) ?? "https://api.github.com",
       autoRefreshInterval: cfg.get<number>(CONFIG.autoRefreshInterval) ?? 5,
       staleMRDays: cfg.get<number>(CONFIG.staleMRDays) ?? 7,
+      pipelineMaxAgeDays: cfg.get<number>(CONFIG.pipelineMaxAgeDays) ?? 7,
     };
     this._postMessage({ type: "setSettings", settings });
   }
@@ -158,6 +159,7 @@ export class DashboardPanel {
       githubHost: CONFIG.githubHost,
       autoRefreshInterval: CONFIG.autoRefreshInterval,
       staleMRDays: CONFIG.staleMRDays,
+      pipelineMaxAgeDays: CONFIG.pipelineMaxAgeDays,
     };
 
     for (const [key, value] of Object.entries(partial)) {

@@ -540,6 +540,7 @@ const SETTINGS_FIELDS: {
   { key: "githubHost", label: "GitHub API Host", group: "GitLab / GitHub", type: "text", placeholder: "https://api.github.com" },
   { key: "autoRefreshInterval", label: "Auto-Refresh (minutes)", group: "Behavior", type: "number", description: "0 to disable" },
   { key: "staleMRDays", label: "Stale MR Threshold (days)", group: "Behavior", type: "number", description: "0 to disable" },
+  { key: "pipelineMaxAgeDays", label: "Pipeline Max Age (days)", group: "Behavior", type: "number", description: "Only show pipelines within this many days" },
   { key: "scanOnStartup", label: "Fetch on Startup", group: "Behavior", type: "boolean" },
 ];
 

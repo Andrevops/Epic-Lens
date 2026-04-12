@@ -466,6 +466,12 @@
           "default": 7,
           "minimum": 0,
           "description": "Flag merge requests older than this many days as stale (0 to disable). Stale MRs show a ⏰ indicator."
+        },
+        "epicLens.pipelineMaxAgeDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 1,
+          "description": "Only show pipelines created within this many days. Older pipelines are excluded from the list."
         }
       }
     }

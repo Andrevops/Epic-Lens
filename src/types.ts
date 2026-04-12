@@ -66,6 +66,7 @@ export interface SettingsData {
   githubHost: string;
   autoRefreshInterval: number;
   staleMRDays: number;
+  pipelineMaxAgeDays: number;
 }
 
 /** Messages between extension and dashboard webview */

@@ -204,7 +204,12 @@ export class GitHubClient implements vscode.Disposable {
     actor: string | undefined,
     output: vscode.OutputChannel
   ): Promise<GitHubWorkflowRun[]> {
-    let url = `${host}/repos/${owner}/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=5`;
+    const maxAgeDays = vscode.workspace
+      .getConfiguration()
+      .get<number>(CONFIG.pipelineMaxAgeDays) ?? 7;
+    const since = new Date(Date.now() - maxAgeDays * 86_400_000).toISOString().split("T")[0];
+
+    let url = `${host}/repos/${owner}/${repo}/actions/runs?branch=${encodeURIComponent(branch)}&per_page=5&created=>${since}`;
     if (actor) url += `&actor=${encodeURIComponent(actor)}`;
     const resp = await this._fetch(url, token, output);
     if (!resp) return [];

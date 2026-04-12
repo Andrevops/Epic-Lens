@@ -206,7 +206,12 @@ export class GitLabClient implements vscode.Disposable {
     username: string | undefined,
     output: vscode.OutputChannel
   ): Promise<GitLabPipeline[]> {
-    let url = `${host}/api/v4/projects/${project.id}/pipelines?per_page=5&order_by=updated_at&sort=desc`;
+    const maxAgeDays = vscode.workspace
+      .getConfiguration()
+      .get<number>(CONFIG.pipelineMaxAgeDays) ?? 7;
+    const since = new Date(Date.now() - maxAgeDays * 86_400_000).toISOString();
+
+    let url = `${host}/api/v4/projects/${project.id}/pipelines?per_page=5&order_by=updated_at&sort=desc&updated_after=${since}`;
     if (username) {
       url += `&username=${encodeURIComponent(username)}`;
     }
