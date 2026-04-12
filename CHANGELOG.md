@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.18.0
+
+### Features
+- add pipelineMaxAgeDays setting to control pipeline age window
+
 ## 0.17.0
 
 ### Features
