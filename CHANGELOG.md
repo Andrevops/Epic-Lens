@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.19.2
+
+### Other
+- remove dismiss feature, use cancel as inline action instead
+
 ## 0.19.1
 
 ### Other
