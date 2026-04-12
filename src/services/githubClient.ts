@@ -7,8 +7,12 @@ import type {
   GitHubSearchItem,
   GitHubPR,
   GitHubReview,
+  GitHubCheckRun,
+  GitHubCheckRunsResponse,
   MergeRequestData,
   MrStatusCategory,
+  PipelineJobData,
+  PipelineDetails,
 } from "../types";
 
 export class GitHubClient implements vscode.Disposable {
@@ -38,7 +42,7 @@ export class GitHubClient implements vscode.Disposable {
     // Step 1: Get authenticated user's login
     const userResp = await this._fetch(`${host}/user`, token, output);
     if (!userResp) return [];
-    const userData = await userResp.json();
+    const userData = (await userResp.json()) as { login: string };
     const username: string = userData.login;
     output.appendLine(`  GitHub user: ${username}`);
 
@@ -56,8 +60,8 @@ export class GitHubClient implements vscode.Disposable {
       ),
     ]);
 
-    const authoredData = authoredResp ? await authoredResp.json() : { items: [] };
-    const reviewData = reviewResp ? await reviewResp.json() : { items: [] };
+    const authoredData = authoredResp ? (await authoredResp.json()) as { items: GitHubSearchItem[] } : { items: [] as GitHubSearchItem[] };
+    const reviewData = reviewResp ? (await reviewResp.json()) as { items: GitHubSearchItem[] } : { items: [] as GitHubSearchItem[] };
 
     const authoredItems: GitHubSearchItem[] = (authoredData.items ?? []).filter(
       (i: GitHubSearchItem) => i.pull_request
@@ -84,14 +88,17 @@ export class GitHubClient implements vscode.Disposable {
       }
     }
 
-    // Step 3: Fetch PR details + reviews in parallel
+    // Step 3: Fetch PR details + reviews + check runs in parallel
     const detailPromises = allItems.map(async ({ item, role }) => {
       const { owner, repo } = this._parseRepoUrl(item.repository_url);
       const [prDetail, reviews] = await Promise.all([
         this._fetchPRDetail(host, token, owner, repo, item.number, output),
         this._fetchReviews(host, token, owner, repo, item.number, output),
       ]);
-      return this._toMergeRequestData(item, owner, repo, prDetail, reviews, role);
+      const checkRuns = prDetail?.head?.sha
+        ? await this._fetchCheckRuns(host, token, owner, repo, prDetail.head.sha, output)
+        : [];
+      return this._toMergeRequestData(item, owner, repo, prDetail, reviews, role, checkRuns);
     });
 
     const results = await Promise.allSettled(detailPromises);
@@ -111,7 +118,7 @@ export class GitHubClient implements vscode.Disposable {
     const url = `${host}/repos/${owner}/${repo}/pulls/${number}`;
     const resp = await this._fetch(url, token, output);
     if (!resp) return null;
-    return resp.json();
+    return (await resp.json()) as GitHubPR;
   }
 
   private async _fetchReviews(
@@ -125,7 +132,22 @@ export class GitHubClient implements vscode.Disposable {
     const url = `${host}/repos/${owner}/${repo}/pulls/${number}/reviews`;
     const resp = await this._fetch(url, token, output);
     if (!resp) return [];
-    return resp.json();
+    return (await resp.json()) as GitHubReview[];
+  }
+
+  private async _fetchCheckRuns(
+    host: string,
+    token: string,
+    owner: string,
+    repo: string,
+    sha: string,
+    output: vscode.OutputChannel
+  ): Promise<GitHubCheckRun[]> {
+    const url = `${host}/repos/${owner}/${repo}/commits/${sha}/check-runs?per_page=100`;
+    const resp = await this._fetch(url, token, output);
+    if (!resp) return [];
+    const data = (await resp.json()) as GitHubCheckRunsResponse;
+    return data.check_runs ?? [];
   }
 
   private _toMergeRequestData(
@@ -134,7 +156,8 @@ export class GitHubClient implements vscode.Disposable {
     repo: string,
     prDetail: GitHubPR | null,
     reviews: GitHubReview[],
-    role: "author" | "reviewer" = "author"
+    role: "author" | "reviewer" = "author",
+    checkRuns: GitHubCheckRun[] = []
   ): MergeRequestData {
     const draft = prDetail?.draft ?? item.draft ?? false;
     const hasConflicts = prDetail?.mergeable_state === "dirty";
@@ -160,6 +183,60 @@ export class GitHubClient implements vscode.Disposable {
     let pipelineStatus: string | undefined;
     if (mergeableState === "unstable") pipelineStatus = "failed";
     else if (mergeableState === "clean") pipelineStatus = "success";
+
+    // Build pipeline details from check runs
+    let pipelineDetails: PipelineDetails | undefined;
+    if (checkRuns.length > 0) {
+      const mappedJobs: PipelineJobData[] = checkRuns.map((cr) => {
+        let jobStatus: string;
+        if (cr.status !== "completed") {
+          jobStatus = "running";
+        } else if (cr.conclusion === "success") {
+          jobStatus = "success";
+        } else if (cr.conclusion === "failure") {
+          jobStatus = "failed";
+        } else if (cr.conclusion === "cancelled") {
+          jobStatus = "cancelled";
+        } else {
+          jobStatus = cr.conclusion ?? "unknown";
+        }
+        const duration =
+          cr.started_at && cr.completed_at
+            ? Math.round(
+                (new Date(cr.completed_at).getTime() -
+                  new Date(cr.started_at).getTime()) /
+                  1000
+              )
+            : undefined;
+        return {
+          name: cr.name,
+          status: jobStatus,
+          durationSeconds: duration,
+          webUrl: cr.html_url,
+        };
+      });
+
+      const failedJobs = mappedJobs.filter((j) => j.status === "failed");
+      const hasRunning = mappedJobs.some((j) => j.status === "running");
+      const hasFailed = failedJobs.length > 0;
+      const overallStatus = hasFailed
+        ? "failed"
+        : hasRunning
+          ? "running"
+          : "success";
+
+      const checksUrl = item.html_url + "/checks";
+
+      pipelineDetails = {
+        pipelineUrl: checksUrl,
+        overallStatus,
+        jobs: mappedJobs,
+        failedJobs,
+      };
+
+      // Override pipelineStatus with more accurate check-run based status
+      pipelineStatus = overallStatus;
+    }
 
     const status = this._categorizeStatus(
       draft,
@@ -188,6 +265,7 @@ export class GitHubClient implements vscode.Disposable {
       projectPath,
       projectName: repo,
       pipelineStatus,
+      pipelineDetails,
       approvedBy,
       approvalsRequired: 0, // GitHub doesn't expose this in the API easily
       status,

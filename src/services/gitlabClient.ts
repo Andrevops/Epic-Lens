@@ -7,6 +7,8 @@ import type {
   GitLabMR,
   GitLabApprovalResponse,
   MergeRequestData,
+  PipelineJobData,
+  PipelineDetails,
 } from "../types";
 
 export class GitLabClient implements vscode.Disposable {
@@ -51,19 +53,19 @@ export class GitLabClient implements vscode.Disposable {
     let reviewerMRs: GitLabMR[] = [];
     const userResp = await this._fetch(`${host}/api/v4/user`, token, output);
     if (userResp) {
-      const user = await userResp.json();
+      const user = (await userResp.json()) as { id: number };
       const reviewResp = await this._fetch(
         `${host}/api/v4/merge_requests?reviewer_id=${user.id}&state=opened&per_page=100`,
         token,
         output
       );
       if (reviewResp) {
-        reviewerMRs = await reviewResp.json();
+        reviewerMRs = (await reviewResp.json()) as GitLabMR[];
         output.appendLine(`  GitLab reviewer MRs fetched: ${reviewerMRs.length}`);
       }
     }
 
-    const authoredMRs: GitLabMR[] = authoredResp ? await authoredResp.json() : [];
+    const authoredMRs: GitLabMR[] = authoredResp ? (await authoredResp.json()) as GitLabMR[] : [];
     output.appendLine(`  GitLab authored MRs fetched: ${authoredMRs.length}`);
 
     // Deduplicate: if an MR appears in both, keep as "author"
@@ -88,12 +90,26 @@ export class GitLabClient implements vscode.Disposable {
       )
     );
 
+    // Fetch pipeline jobs in parallel (only for MRs with a pipeline)
+    const pipelineResults = await Promise.allSettled(
+      allRaw.map(({ raw }) => {
+        if (!raw.head_pipeline?.id) return Promise.resolve([]);
+        return this._fetchPipelineJobs(
+          host, token, raw.project_id, raw.head_pipeline.id, output
+        );
+      })
+    );
+
     return allRaw.map(({ raw, role }, i) => {
       const approvals =
         approvalResults[i].status === "fulfilled"
           ? approvalResults[i].value
           : null;
-      return this._toMergeRequestData(raw, approvals, role);
+      const jobs =
+        pipelineResults[i].status === "fulfilled"
+          ? pipelineResults[i].value
+          : [];
+      return this._toMergeRequestData(raw, approvals, role, jobs);
     });
   }
 
@@ -107,13 +123,27 @@ export class GitLabClient implements vscode.Disposable {
     const url = `${host}/api/v4/projects/${projectId}/merge_requests/${mrIid}/approvals`;
     const response = await this._fetch(url, token, output);
     if (!response) return null;
-    return response.json();
+    return (await response.json()) as GitLabApprovalResponse;
+  }
+
+  private async _fetchPipelineJobs(
+    host: string,
+    token: string,
+    projectId: number,
+    pipelineId: number,
+    output: vscode.OutputChannel
+  ): Promise<{ name: string; stage: string; status: string; duration: number | null; web_url: string }[]> {
+    const url = `${host}/api/v4/projects/${projectId}/pipelines/${pipelineId}/jobs?per_page=100`;
+    const response = await this._fetch(url, token, output);
+    if (!response) return [];
+    return (await response.json()) as { name: string; stage: string; status: string; duration: number | null; web_url: string }[];
   }
 
   private _toMergeRequestData(
     raw: GitLabMR,
     approvals: GitLabApprovalResponse | null,
-    role: "author" | "reviewer" = "author"
+    role: "author" | "reviewer" = "author",
+    jobs: { name: string; stage: string; status: string; duration: number | null; web_url: string }[] = []
   ): MergeRequestData {
     const approvedBy =
       approvals?.approved_by?.map((a) => a.user.name) ?? [];
@@ -123,6 +153,24 @@ export class GitLabClient implements vscode.Disposable {
     const refParts = raw.references.full.split("!");
     const projectPath = refParts[0];
     const projectName = projectPath.split("/").pop() ?? projectPath;
+
+    // Build pipeline details from jobs
+    let pipelineDetails: PipelineDetails | undefined;
+    if (raw.head_pipeline) {
+      const mappedJobs: PipelineJobData[] = jobs.map((j) => ({
+        name: j.name,
+        stage: j.stage,
+        status: j.status,
+        durationSeconds: j.duration ?? undefined,
+        webUrl: j.web_url,
+      }));
+      pipelineDetails = {
+        pipelineUrl: raw.head_pipeline.web_url,
+        overallStatus: raw.head_pipeline.status,
+        jobs: mappedJobs,
+        failedJobs: mappedJobs.filter((j) => j.status === "failed"),
+      };
+    }
 
     return {
       provider: "gitlab",
@@ -141,6 +189,7 @@ export class GitLabClient implements vscode.Disposable {
       projectPath,
       projectName,
       pipelineStatus: raw.head_pipeline?.status,
+      pipelineDetails,
       approvedBy,
       approvalsRequired,
       status: categorizeMrStatus(raw, approvedBy.length, approvalsRequired),

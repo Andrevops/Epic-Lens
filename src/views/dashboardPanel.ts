@@ -101,8 +101,8 @@ export class DashboardPanel {
         vscode.commands.executeCommand("epicLens.copyKey", msg.key);
         break;
       case "openMR":
-        if ((msg as any).url) {
-          vscode.env.openExternal(vscode.Uri.parse((msg as any).url));
+        if (msg.url) {
+          vscode.env.openExternal(vscode.Uri.parse(msg.url));
         }
         break;
       case "setFilter":
@@ -123,7 +123,7 @@ export class DashboardPanel {
     const epics = this._manager.getFilteredEpics();
     const filters = this._manager.filters;
     const mrs = this._mrTreeProvider?.mrs ?? [];
-    this._postMessage({ type: "setData", epics, filters, mrs } as any);
+    this._postMessage({ type: "setData", epics, filters, mrs });
   }
 
   private _postMessage(msg: ExtensionMessage): void {
@@ -703,7 +703,27 @@ export class DashboardPanel {
           html += '<div class="card-meta">';
           html += '<span>' + esc(mr.sourceBranch) + ' → ' + esc(mr.targetBranch) + '</span>';
           if (mr.approvedBy && mr.approvedBy.length > 0) html += '<span>👍 ' + mr.approvedBy.length + '</span>';
-          if (mr.pipelineStatus) html += '<span>CI: ' + mr.pipelineStatus + '</span>';
+          if (mr.pipelineDetails) {
+            var pd = mr.pipelineDetails;
+            var pipeEmoji = pd.overallStatus === 'success' ? '✅' : pd.overallStatus === 'failed' ? '❌' : '🔄';
+            var ciHtml = '<span>' + pipeEmoji + ' CI';
+            if (pd.pipelineUrl) {
+              ciHtml += ' <a href="#" onclick="event.stopPropagation();window.openMR(\\'+ JSON.stringify(pd.pipelineUrl) +'\\');return false;" style="color:inherit;text-decoration:underline;">view</a>';
+            }
+            ciHtml += '</span>';
+            html += ciHtml;
+            if (pd.failedJobs && pd.failedJobs.length > 0) {
+              html += '<span style="color:var(--badge-blocked);">❌ ' + pd.failedJobs.map(function(j){ return esc(j.name); }).join(', ') + '</span>';
+            }
+            var passed = pd.jobs.filter(function(j){ return j.status === 'success'; }).length;
+            var failed = pd.failedJobs ? pd.failedJobs.length : 0;
+            var running = pd.jobs.filter(function(j){ return j.status === 'running'; }).length;
+            if (pd.jobs.length > 0) {
+              html += '<span>Jobs: ' + passed + '✅' + (failed > 0 ? ' ' + failed + '❌' : '') + (running > 0 ? ' ' + running + '🔄' : '') + '</span>';
+            }
+          } else if (mr.pipelineStatus) {
+            html += '<span>CI: ' + mr.pipelineStatus + '</span>';
+          }
           html += '</div></div>';
         });
         html += '</div>';

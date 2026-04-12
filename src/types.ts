@@ -55,7 +55,7 @@ export interface FilterState {
 
 /** Messages between extension and dashboard webview */
 export type ExtensionMessage =
-  | { type: "setData"; epics: EpicData[]; filters: FilterState }
+  | { type: "setData"; epics: EpicData[]; filters: FilterState; mrs: MergeRequestData[] }
   | { type: "refreshing" }
   | { type: "filtersChanged"; filters: FilterState };
 
@@ -64,6 +64,7 @@ export type WebviewMessage =
   | { type: "refresh" }
   | { type: "openInJira"; key: string }
   | { type: "copyKey"; key: string }
+  | { type: "openMR"; url: string }
   | { type: "setFilter"; filters: Partial<FilterState> };
 
 /* ── Merge Request / Pull Request types ── */
@@ -85,6 +86,23 @@ export type MrProviderFilter = "both" | "gitlab" | "github";
 export type MrRole = "author" | "reviewer";
 export type MrScopeFilter = "authored" | "reviewing" | "all";
 
+/** A single CI job (GitLab) or check run (GitHub) */
+export interface PipelineJobData {
+  name: string;
+  stage?: string;
+  status: string; // "success" | "failed" | "running" | "pending" | "cancelled" | "skipped"
+  durationSeconds?: number;
+  webUrl?: string;
+}
+
+/** Pipeline/CI details attached to an MR/PR */
+export interface PipelineDetails {
+  pipelineUrl?: string;
+  overallStatus: string; // "success" | "failed" | "running" | "pending"
+  jobs: PipelineJobData[];
+  failedJobs: PipelineJobData[];
+}
+
 export interface MergeRequestData {
   provider: MrProvider;
   role: MrRole;
@@ -102,6 +120,7 @@ export interface MergeRequestData {
   projectPath: string;
   projectName: string;
   pipelineStatus?: string;
+  pipelineDetails?: PipelineDetails;
   approvedBy: string[];
   approvalsRequired: number;
   status: MrStatusCategory;
@@ -122,7 +141,7 @@ export interface GitLabMR {
   project_id: number;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   references: { full: string };
-  head_pipeline?: { status: string } | null;
+  head_pipeline?: { status: string; id?: number; web_url?: string } | null;
   detailed_merge_status?: string;
 }
 
@@ -168,4 +187,21 @@ export interface GitHubPR {
 export interface GitHubReview {
   user: { login: string };
   state: string; // "APPROVED" | "CHANGES_REQUESTED" | "COMMENTED" | "DISMISSED" | "PENDING"
+}
+
+/** GitHub check run */
+export interface GitHubCheckRun {
+  id: number;
+  name: string;
+  status: string; // "queued" | "in_progress" | "completed"
+  conclusion: string | null; // "success" | "failure" | "neutral" | "cancelled" | "timed_out" | "action_required" | "skipped"
+  html_url: string;
+  started_at: string | null;
+  completed_at: string | null;
+}
+
+/** GitHub check runs API response */
+export interface GitHubCheckRunsResponse {
+  total_count: number;
+  check_runs: GitHubCheckRun[];
 }

@@ -336,7 +336,50 @@ export class MrTreeProvider
     );
 
     // Pipeline
-    if (mr.pipelineStatus) {
+    if (mr.pipelineDetails) {
+      const pd = mr.pipelineDetails;
+      const pipeEmoji =
+        pd.overallStatus === "success"
+          ? "✅"
+          : pd.overallStatus === "failed"
+            ? "❌"
+            : "🔄";
+      md.appendMarkdown(`**Pipeline:** ${pipeEmoji} ${pd.overallStatus}`);
+      if (pd.pipelineUrl) {
+        md.appendMarkdown(` — [view](${pd.pipelineUrl})`);
+      }
+      md.appendMarkdown("\n\n");
+
+      if (pd.failedJobs.length > 0) {
+        md.appendMarkdown("**Failed:**\n\n");
+        for (const job of pd.failedJobs) {
+          const link = job.webUrl ? `[${job.name}](${job.webUrl})` : job.name;
+          const dur = job.durationSeconds
+            ? ` (${_formatDuration(job.durationSeconds)})`
+            : "";
+          md.appendMarkdown(`- ❌ ${link}${dur}\n`);
+        }
+        md.appendMarkdown("\n");
+      }
+
+      const otherJobs = pd.jobs.filter((j) => j.status !== "failed");
+      if (otherJobs.length > 0) {
+        const summary = otherJobs
+          .map((j) => {
+            const icon =
+              j.status === "success"
+                ? "✅"
+                : j.status === "running"
+                  ? "🔄"
+                  : j.status === "pending"
+                    ? "⏳"
+                    : "⏭️";
+            return `${icon} ${j.name}`;
+          })
+          .join(" · ");
+        md.appendMarkdown(`**Jobs:** ${summary}\n\n`);
+      }
+    } else if (mr.pipelineStatus) {
       const pipeEmoji =
         mr.pipelineStatus === "success"
           ? "✅"
@@ -379,4 +422,11 @@ export class MrTreeProvider
 
     return md;
   }
+}
+
+function _formatDuration(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`;
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }

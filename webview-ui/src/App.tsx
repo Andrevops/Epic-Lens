@@ -27,6 +27,21 @@ interface FilterState {
   hideDone: boolean;
 }
 
+interface PipelineJobData {
+  name: string;
+  stage?: string;
+  status: string;
+  durationSeconds?: number;
+  webUrl?: string;
+}
+
+interface PipelineDetails {
+  pipelineUrl?: string;
+  overallStatus: string;
+  jobs: PipelineJobData[];
+  failedJobs: PipelineJobData[];
+}
+
 interface MergeRequestData {
   provider: "gitlab" | "github";
   role: "author" | "reviewer";
@@ -42,6 +57,7 @@ interface MergeRequestData {
   projectPath: string;
   projectName: string;
   pipelineStatus?: string;
+  pipelineDetails?: PipelineDetails;
   approvedBy: string[];
   approvalsRequired: number;
   status: string;
@@ -409,6 +425,42 @@ function MrSection({ mrs }: { mrs: MergeRequestData[] }) {
   );
 }
 
+function PipelineSummary({ details }: { details: PipelineDetails }) {
+  const passed = details.jobs.filter((j) => j.status === "success").length;
+  const failed = details.failedJobs.length;
+  const running = details.jobs.filter((j) => j.status === "running").length;
+  const pipeEmoji =
+    details.overallStatus === "success"
+      ? "\u2705"
+      : details.overallStatus === "failed"
+        ? "\u274C"
+        : "\uD83D\uDD04";
+
+  return (
+    <span>
+      {pipeEmoji} {passed}/{details.jobs.length} passed
+      {failed > 0 && ` \u00B7 ${failed} failed`}
+      {running > 0 && ` \u00B7 ${running} running`}
+      {details.pipelineUrl && (
+        <>
+          {" "}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              vscode.postMessage({ type: "openMR", url: details.pipelineUrl! });
+            }}
+            style={{ color: "inherit", textDecoration: "underline" }}
+          >
+            view
+          </a>
+        </>
+      )}
+    </span>
+  );
+}
+
 function MrCard({ mr }: { mr: MergeRequestData }) {
   const colorClass = MR_STATUS_COLORS[mr.status] || "backlog";
   const emoji = MR_STATUS_EMOJI[mr.status] || "\uD83D\uDCCB";
@@ -436,8 +488,19 @@ function MrCard({ mr }: { mr: MergeRequestData }) {
           {mr.sourceBranch} → {mr.targetBranch}
         </span>
         {mr.approvedBy.length > 0 && <span>{"\uD83D\uDC4D"} {mr.approvedBy.length}</span>}
-        {mr.pipelineStatus && <span>CI: {mr.pipelineStatus}</span>}
+        {mr.pipelineDetails ? (
+          <PipelineSummary details={mr.pipelineDetails} />
+        ) : mr.pipelineStatus ? (
+          <span>CI: {mr.pipelineStatus}</span>
+        ) : null}
       </div>
+      {mr.pipelineDetails && mr.pipelineDetails.failedJobs.length > 0 && (
+        <div className="card-meta" style={{ color: "var(--badge-blocked, #e74c3c)" }}>
+          <span>
+            {"\u274C"} Failed: {mr.pipelineDetails.failedJobs.map((j) => j.name).join(", ")}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
