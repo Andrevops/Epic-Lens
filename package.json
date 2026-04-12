@@ -222,6 +222,18 @@
         "title": "Cycle Pipeline Scope: Mine / All",
         "category": "Epic Lens",
         "icon": "$(account)"
+      },
+      {
+        "command": "epicLens.dismissPipeline",
+        "title": "Dismiss Pipeline",
+        "category": "Epic Lens",
+        "icon": "$(close)"
+      },
+      {
+        "command": "epicLens.clearDismissedPipelines",
+        "title": "Restore Dismissed Pipelines",
+        "category": "Epic Lens",
+        "icon": "$(history)"
       }
     ],
     "keybindings": [
@@ -347,6 +359,11 @@
           "command": "epicLens.cyclePipelineScope",
           "when": "view == epicLens.pipelines",
           "group": "navigation@4"
+        },
+        {
+          "command": "epicLens.clearDismissedPipelines",
+          "when": "view == epicLens.pipelines",
+          "group": "overflow@1"
         }
       ],
       "view/item/context": [
@@ -374,6 +391,11 @@
           "command": "epicLens.openPipeline",
           "when": "view == epicLens.pipelines && viewItem == pipeline",
           "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.dismissPipeline",
+          "when": "view == epicLens.pipelines && viewItem == pipeline",
+          "group": "inline"
         }
       ]
     },

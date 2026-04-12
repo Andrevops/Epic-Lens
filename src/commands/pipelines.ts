@@ -61,6 +61,23 @@ export function registerPipelineCommands(
     })
   );
 
+  // Dismiss a pipeline (hide from the list)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.dismissPipeline, (arg: unknown) => {
+      const pipeline = resolvePipeline(arg);
+      if (!pipeline) return;
+      pipelineTreeProvider.dismiss(pipeline);
+    })
+  );
+
+  // Clear all dismissed pipelines
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.clearDismissedPipelines, () => {
+      pipelineTreeProvider.clearDismissed();
+      vscode.window.showInformationMessage("Epic Lens: Dismissed pipelines restored");
+    })
+  );
+
   // Open pipeline in browser
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.openPipeline, (arg: unknown) => {
