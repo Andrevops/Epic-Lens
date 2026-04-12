@@ -136,13 +136,11 @@ export class PipelineTreeProvider
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
 
-      // If the most recent pipeline succeeded, skip this project entirely
-      if (projectPipelines[0]?.status === "success") continue;
-
-      // Filter out completed (success) pipelines, cap at 5
+      // Keep only non-success pipelines (failed, running, pending, canceled)
       const active = projectPipelines
         .filter((p) => p.status !== "success")
         .slice(0, 5);
+
       result.push(...active);
     }
 
