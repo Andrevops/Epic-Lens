@@ -30,13 +30,14 @@ export function registerMrCommands(
     })
   );
 
-  // Refresh MRs (silent)
+  // Refresh MRs (with toast)
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.refreshMRs, async () => {
       await vscode.window.withProgress(
         {
-          location: vscode.ProgressLocation.Window,
-          title: "Refreshing MRs...",
+          location: vscode.ProgressLocation.Notification,
+          title: "Epic Lens: Refreshing merge requests...",
+          cancellable: false,
         },
         async () => {
           await mrTreeProvider.fetch();

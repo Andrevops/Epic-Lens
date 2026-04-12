@@ -31,13 +31,14 @@ export function registerPipelineCommands(
     })
   );
 
-  // Refresh pipelines (silent)
+  // Refresh pipelines (with toast)
   context.subscriptions.push(
     vscode.commands.registerCommand(CMD.refreshPipelines, async () => {
       await vscode.window.withProgress(
         {
-          location: vscode.ProgressLocation.Window,
-          title: "Refreshing pipelines...",
+          location: vscode.ProgressLocation.Notification,
+          title: "Epic Lens: Refreshing pipelines...",
+          cancellable: false,
         },
         async () => {
           await pipelineTreeProvider.fetch();
