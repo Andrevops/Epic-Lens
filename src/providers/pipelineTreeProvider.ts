@@ -115,8 +115,38 @@ export class PipelineTreeProvider
   }
 
   private _filteredPipelines(): StandalonePipelineData[] {
-    if (this._providerFilter === "both") return this._allPipelines;
-    return this._allPipelines.filter((p) => p.provider === this._providerFilter);
+    let pipelines = this._allPipelines;
+    if (this._providerFilter !== "both") {
+      pipelines = pipelines.filter((p) => p.provider === this._providerFilter);
+    }
+
+    // Group by project, sorted by date desc within each group
+    const byProject = new Map<string, StandalonePipelineData[]>();
+    for (const p of pipelines) {
+      const key = `${p.provider}:${p.projectPath}`;
+      const list = byProject.get(key) ?? [];
+      list.push(p);
+      byProject.set(key, list);
+    }
+
+    const result: StandalonePipelineData[] = [];
+    for (const [, projectPipelines] of byProject) {
+      // Sort newest first
+      projectPipelines.sort(
+        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+      );
+
+      // If the most recent pipeline succeeded, skip this project entirely
+      if (projectPipelines[0]?.status === "success") continue;
+
+      // Filter out completed (success) pipelines, cap at 5
+      const active = projectPipelines
+        .filter((p) => p.status !== "success")
+        .slice(0, 5);
+      result.push(...active);
+    }
+
+    return result;
   }
 
   private _updateContext(): void {
