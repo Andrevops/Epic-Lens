@@ -541,6 +541,7 @@ const SETTINGS_FIELDS: {
   { key: "autoRefreshInterval", label: "Auto-Refresh (minutes)", group: "Behavior", type: "number", description: "0 to disable" },
   { key: "staleMRDays", label: "Stale MR Threshold (days)", group: "Behavior", type: "number", description: "0 to disable" },
   { key: "pipelineMaxAgeDays", label: "Pipeline Max Age (days)", group: "Behavior", type: "number", description: "Only show pipelines within this many days" },
+  { key: "pipelineScope", label: "Pipeline Scope", group: "Behavior", type: "select", options: [{ value: "mine", label: "Mine" }, { value: "all", label: "All" }], description: "Mine = your pipelines, All = everyone's" },
   { key: "scanOnStartup", label: "Fetch on Startup", group: "Behavior", type: "boolean" },
 ];
 

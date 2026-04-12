@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import { CMD, CTX, PIPELINE_STATUS_EMOJI, PIPELINE_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
+import { CMD, CTX, CONFIG, PIPELINE_STATUS_EMOJI, PIPELINE_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
 import type { StandalonePipelineData, PipelineStatusCategory, PipelineJobData, MrProviderFilter, PipelineScopeFilter } from "../types";
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
@@ -35,7 +35,6 @@ export class PipelineTreeProvider
   private _allPipelines: StandalonePipelineData[] = [];
   private _previousStatuses = new Map<string, PipelineStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
-  private _scopeFilter: PipelineScopeFilter = "mine";
   private _onDidChangeTreeData = new vscode.EventEmitter<
     PipelineTreeNode | undefined | void
   >();
@@ -56,7 +55,9 @@ export class PipelineTreeProvider
   }
 
   get scopeFilter(): PipelineScopeFilter {
-    return this._scopeFilter;
+    return vscode.workspace
+      .getConfiguration()
+      .get<PipelineScopeFilter>(CONFIG.pipelineScope) ?? "mine";
   }
 
   cycleProvider(): MrProviderFilter {
@@ -73,16 +74,18 @@ export class PipelineTreeProvider
   }
 
   cycleScope(): PipelineScopeFilter {
-    const idx = SCOPE_CYCLE.indexOf(this._scopeFilter);
-    this._scopeFilter = SCOPE_CYCLE[(idx + 1) % SCOPE_CYCLE.length];
+    const current = this.scopeFilter;
+    const idx = SCOPE_CYCLE.indexOf(current);
+    const next = SCOPE_CYCLE[(idx + 1) % SCOPE_CYCLE.length];
+    vscode.workspace.getConfiguration().update(CONFIG.pipelineScope, next, true);
     this._onDidChangeTreeData.fire();
     // Re-fetch with new scope since the API filter changes
     this.fetch();
-    return this._scopeFilter;
+    return next;
   }
 
   async fetch(): Promise<number> {
-    const filterByUser = this._scopeFilter === "mine";
+    const filterByUser = this.scopeFilter === "mine";
     const [gitlabPipelines, githubPipelines] = await Promise.all([
       this._gitlabClient.fetchMyPipelines(this._output, filterByUser).catch((e) => {
         this._output.appendLine(`  GitLab pipeline fetch failed: ${e}`);

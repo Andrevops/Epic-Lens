@@ -148,6 +148,9 @@ export function activate(context: vscode.ExtensionContext): void {
       if (e.affectsConfiguration(CONFIG.autoRefreshInterval)) {
         setupAutoRefresh();
       }
+      if (e.affectsConfiguration(CONFIG.pipelineScope)) {
+        pipelineTreeProvider.fetch();
+      }
     }),
     { dispose: () => { if (refreshTimer) clearInterval(refreshTimer); } }
   );

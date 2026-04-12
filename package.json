@@ -466,6 +466,16 @@
           "default": 7,
           "minimum": 1,
           "description": "Only show pipelines created within this many days. Older pipelines are excluded from the list."
+        },
+        "epicLens.pipelineScope": {
+          "type": "string",
+          "default": "mine",
+          "enum": ["mine", "all"],
+          "enumDescriptions": [
+            "Only pipelines triggered by you",
+            "All pipelines on your projects"
+          ],
+          "description": "Which pipelines to show — yours only or all on your projects"
         }
       }
     }

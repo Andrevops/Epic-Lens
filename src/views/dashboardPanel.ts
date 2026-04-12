@@ -139,6 +139,7 @@ export class DashboardPanel {
       autoRefreshInterval: cfg.get<number>(CONFIG.autoRefreshInterval) ?? 5,
       staleMRDays: cfg.get<number>(CONFIG.staleMRDays) ?? 7,
       pipelineMaxAgeDays: cfg.get<number>(CONFIG.pipelineMaxAgeDays) ?? 7,
+      pipelineScope: cfg.get<string>(CONFIG.pipelineScope) ?? "mine",
     };
     this._postMessage({ type: "setSettings", settings });
   }
@@ -160,6 +161,7 @@ export class DashboardPanel {
       autoRefreshInterval: CONFIG.autoRefreshInterval,
       staleMRDays: CONFIG.staleMRDays,
       pipelineMaxAgeDays: CONFIG.pipelineMaxAgeDays,
+      pipelineScope: CONFIG.pipelineScope,
     };
 
     for (const [key, value] of Object.entries(partial)) {

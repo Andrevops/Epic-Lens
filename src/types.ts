@@ -67,6 +67,7 @@ export interface SettingsData {
   autoRefreshInterval: number;
   staleMRDays: number;
   pipelineMaxAgeDays: number;
+  pipelineScope: string;
 }
 
 /** Messages between extension and dashboard webview */
