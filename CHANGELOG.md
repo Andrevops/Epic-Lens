@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.16.0
+
+### Features
+- pipeline scope toggle (Mine/All) and dashboard settings tab
+
 ## 0.15.4
 
 ### Bug Fixes
