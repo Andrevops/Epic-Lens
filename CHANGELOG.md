@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.17.0
+
+### Features
+- dismiss pipelines with auto-cleanup of stale entries
+
 ## 0.16.0
 
 ### Features
