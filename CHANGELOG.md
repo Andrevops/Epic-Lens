@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.19.1
+
+### Other
+- document pipeline scope, dismiss, cancel, max age, and settings tab
+
 ## 0.19.0
 
 ### Features
