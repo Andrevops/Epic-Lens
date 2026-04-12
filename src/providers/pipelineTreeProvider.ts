@@ -82,6 +82,20 @@ export class PipelineTreeProvider
     newPipelines.sort(
       (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
     );
+
+    // Log what we got vs what we'll show
+    const projects = new Set(newPipelines.map((p) => p.projectName));
+    this._output.appendLine(
+      `  Pipelines total: ${newPipelines.length} across ${projects.size} projects (${[...projects].join(", ")})`
+    );
+    const byStatus = new Map<string, number>();
+    for (const p of newPipelines) {
+      byStatus.set(p.status, (byStatus.get(p.status) ?? 0) + 1);
+    }
+    this._output.appendLine(
+      `  Pipeline statuses: ${[...byStatus.entries()].map(([s, c]) => `${s}=${c}`).join(", ")}`
+    );
+
     this._notifyChanges(newPipelines);
     this._allPipelines = newPipelines;
     this._updateContext();
@@ -191,6 +205,7 @@ export class PipelineTreeProvider
   private _getRootNodes(): PipelineTreeNode[] {
     const pipelines = this._filteredPipelines();
 
+    // Always group by project so the repo context is visible
     const byProject = new Map<string, StandalonePipelineData[]>();
     for (const p of pipelines) {
       const key = `${p.provider}:${p.projectPath}`;
@@ -199,12 +214,6 @@ export class PipelineTreeProvider
       byProject.set(key, list);
     }
 
-    // Single project: show pipelines flat
-    if (byProject.size === 1) {
-      return pipelines.map((p) => ({ kind: "pipeline" as const, pipeline: p }));
-    }
-
-    // Multiple projects: group
     const nodes: PipelineTreeNode[] = [];
     for (const [, projectPipelines] of byProject) {
       const first = projectPipelines[0];
@@ -250,7 +259,7 @@ export class PipelineTreeProvider
         : vscode.TreeItemCollapsibleState.None
     );
 
-    item.description = this._timeAgo(pipeline.updatedAt);
+    item.description = `${pipeline.projectName} · ${this._timeAgo(pipeline.updatedAt)}`;
     item.iconPath = this._pipelineIcon(pipeline.status);
     item.tooltip = this._pipelineTooltip(pipeline);
     item.contextValue = "pipeline";
