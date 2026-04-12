@@ -40,7 +40,7 @@ export function activate(context: vscode.ExtensionContext): void {
   });
 
   // Pipeline TreeView
-  const pipelineTreeProvider = new PipelineTreeProvider(gitlabClient, githubClient, output, context);
+  const pipelineTreeProvider = new PipelineTreeProvider(gitlabClient, githubClient, output);
   const pipelineTreeView = vscode.window.createTreeView(VIEW_PIPELINES, {
     treeDataProvider: pipelineTreeProvider,
     showCollapseAll: true,

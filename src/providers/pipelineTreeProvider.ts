@@ -29,13 +29,10 @@ type PipelineTreeNode = PipelineProjectNode | PipelineNode | PipelineJobNode;
 const PROVIDER_CYCLE: MrProviderFilter[] = ["both", "gitlab", "github"];
 const SCOPE_CYCLE: PipelineScopeFilter[] = ["mine", "all"];
 
-const DISMISSED_KEY = "epicLens.dismissedPipelines";
-
 export class PipelineTreeProvider
   implements vscode.TreeDataProvider<PipelineTreeNode>
 {
   private _allPipelines: StandalonePipelineData[] = [];
-  private _dismissedIds: Set<string>;
   private _previousStatuses = new Map<string, PipelineStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
   private _scopeFilter: PipelineScopeFilter = "mine";
@@ -47,30 +44,8 @@ export class PipelineTreeProvider
   constructor(
     private _gitlabClient: GitLabClient,
     private _githubClient: GitHubClient,
-    private _output: vscode.OutputChannel,
-    private _context?: vscode.ExtensionContext
-  ) {
-    const saved = _context?.workspaceState.get<string[]>(DISMISSED_KEY) ?? [];
-    this._dismissedIds = new Set(saved);
-  }
-
-  async dismiss(pipeline: StandalonePipelineData): Promise<void> {
-    this._dismissedIds.add(pipeline.webUrl);
-    this._output.appendLine(`  Pipeline dismissed: ${pipeline.webUrl} (${this._dismissedIds.size} total)`);
-    await this._context?.workspaceState.update(
-      DISMISSED_KEY,
-      [...this._dismissedIds]
-    );
-    this._updateContext();
-    this._onDidChangeTreeData.fire();
-  }
-
-  async clearDismissed(): Promise<void> {
-    this._dismissedIds.clear();
-    await this._context?.workspaceState.update(DISMISSED_KEY, []);
-    this._updateContext();
-    this._onDidChangeTreeData.fire();
-  }
+    private _output: vscode.OutputChannel
+  ) {}
 
   get pipelines(): StandalonePipelineData[] {
     return this._filteredPipelines();
@@ -139,21 +114,6 @@ export class PipelineTreeProvider
 
     this._notifyChanges(newPipelines);
     this._allPipelines = newPipelines;
-
-    // Prune dismissed IDs that are no longer in the API response
-    const currentUrls = new Set(newPipelines.map((p) => p.webUrl));
-    let pruned = false;
-    for (const url of this._dismissedIds) {
-      if (!currentUrls.has(url)) {
-        this._dismissedIds.delete(url);
-        pruned = true;
-      }
-    }
-    if (pruned) {
-      this._output.appendLine(`  Pruned stale dismissed entries, ${this._dismissedIds.size} remaining`);
-      await this._context?.workspaceState.update(DISMISSED_KEY, [...this._dismissedIds]);
-    }
-
     this._updateContext();
     this._onDidChangeTreeData.fire();
     return this._filteredPipelines().length;
@@ -185,17 +145,7 @@ export class PipelineTreeProvider
   }
 
   private _filteredPipelines(): StandalonePipelineData[] {
-    const dismissed = this._allPipelines.filter(
-      (p) => this._dismissedIds.has(p.webUrl)
-    );
-    if (dismissed.length > 0) {
-      this._output.appendLine(
-        `  Pipelines hidden (dismissed): ${dismissed.length} — ${dismissed.map((p) => `#${p.id}`).join(", ")}`
-      );
-    }
-    let pipelines = this._allPipelines.filter(
-      (p) => !this._dismissedIds.has(p.webUrl)
-    );
+    let pipelines = this._allPipelines;
     if (this._providerFilter !== "both") {
       pipelines = pipelines.filter((p) => p.provider === this._providerFilter);
     }
