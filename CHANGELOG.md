@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.21.2
+
+### Bug Fixes
+- show notification toast for MR and pipeline refresh commands
+
 ## 0.21.1
 
 ### Bug Fixes
