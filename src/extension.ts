@@ -114,11 +114,29 @@ export function activate(context: vscode.ExtensionContext): void {
       .getConfiguration()
       .get<boolean>(CONFIG.scanOnStartup) ?? true;
 
+  // Loading animation helpers
+  const withLoading = async (
+    view: vscode.TreeView<unknown>,
+    label: string,
+    fn: () => Promise<unknown>
+  ) => {
+    view.description = `$(sync~spin) ${label}`;
+    try {
+      await fn();
+    } finally {
+      view.description = undefined;
+    }
+  };
+
+  const fetchAll = () => {
+    withLoading(treeView as vscode.TreeView<unknown>, "Fetching epics...", () => manager.scan());
+    withLoading(mrTreeView as vscode.TreeView<unknown>, "Fetching MRs...", () => mrTreeProvider.fetch());
+    withLoading(pipelineTreeView as vscode.TreeView<unknown>, "Fetching pipelines...", () => pipelineTreeProvider.fetch());
+  };
+
   if (scanOnStartup) {
     // Small delay to let workspace fully load
-    setTimeout(() => manager.scan(), 1500);
-    setTimeout(() => mrTreeProvider.fetch(), 2000);
-    setTimeout(() => pipelineTreeProvider.fetch(), 2500);
+    setTimeout(fetchAll, 1500);
   }
 
   // Auto-refresh interval
@@ -134,9 +152,7 @@ export function activate(context: vscode.ExtensionContext): void {
       const ms = minutes * 60_000;
       refreshTimer = setInterval(() => {
         output.appendLine(`Auto-refresh triggered (every ${minutes}m)`);
-        manager.scan();
-        mrTreeProvider.fetch();
-        pipelineTreeProvider.fetch();
+        fetchAll();
       }, ms);
       output.appendLine(`Auto-refresh set to ${minutes} minutes`);
     }

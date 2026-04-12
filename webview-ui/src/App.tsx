@@ -139,14 +139,18 @@ export function App() {
   });
   const [viewMode, setViewMode] = useState<"board" | "list" | "settings">("board");
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const handler = (event: MessageEvent) => {
       const msg = event.data;
-      if (msg.type === "setData") {
+      if (msg.type === "refreshing") {
+        setLoading(true);
+      } else if (msg.type === "setData") {
         setEpics(msg.epics);
         setMrs(msg.mrs || []);
         setFilters(msg.filters);
+        setLoading(false);
       } else if (msg.type === "filtersChanged") {
         setFilters(msg.filters);
       } else if (msg.type === "setSettings") {
@@ -182,6 +186,7 @@ export function App() {
 
   return (
     <>
+      {loading && <LoadingOverlay />}
       <div className="toolbar">
         <h1>Epic Lens Dashboard</h1>
         <div className="view-toggle">
@@ -234,8 +239,14 @@ export function App() {
           />
           Hide Done
         </label>
-        <button onClick={() => vscode.postMessage({ type: "refresh" })}>
-          Refresh
+        <button
+          onClick={() => {
+            setLoading(true);
+            vscode.postMessage({ type: "refresh" });
+          }}
+          disabled={loading}
+        >
+          {loading ? "\u21BB Loading..." : "\u21BB Refresh"}
         </button>
       </div>
 
@@ -659,6 +670,42 @@ function SettingsView({ settings }: { settings: Record<string, unknown> }) {
       >
         Save Settings
       </button>
+    </div>
+  );
+}
+
+function LoadingOverlay() {
+  return (
+    <div
+      style={{
+        position: "fixed",
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0,0,0,0.3)",
+        zIndex: 999,
+        backdropFilter: "blur(2px)",
+      }}
+    >
+      <div style={{ textAlign: "center" }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            border: "3px solid var(--vscode-panel-border, #444)",
+            borderTopColor: "var(--vscode-button-background, #007acc)",
+            borderRadius: "50%",
+            animation: "spin 0.8s linear infinite",
+            margin: "0 auto 12px",
+          }}
+        />
+        <div style={{ fontSize: "0.9em", opacity: 0.8 }}>Loading...</div>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
     </div>
   );
 }
