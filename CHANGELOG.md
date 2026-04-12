@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.21.1
+
+### Bug Fixes
+- use native VS Code progress spinner instead of literal codicon text
+
 ## 0.21.0
 
 ### Features
