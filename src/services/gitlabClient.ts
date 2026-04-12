@@ -260,6 +260,28 @@ export class GitLabClient implements vscode.Disposable {
     };
   }
 
+  async cancelPipeline(
+    projectId: number,
+    pipelineId: number,
+    output: vscode.OutputChannel
+  ): Promise<boolean> {
+    const { host, token } = await this._getCredentials();
+    if (!host || !token) return false;
+    const url = `${host}/api/v4/projects/${projectId}/pipelines/${pipelineId}/cancel`;
+    output.appendLine(`  GitLab cancel pipeline: ${url}`);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "PRIVATE-TOKEN": token },
+      });
+      output.appendLine(`  GitLab cancel response: ${response.status}`);
+      return response.ok;
+    } catch (err) {
+      output.appendLine(`  GitLab cancel error: ${err}`);
+      return false;
+    }
+  }
+
   private async _fetchApprovals(
     host: string,
     token: string,

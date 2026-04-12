@@ -30,6 +30,7 @@ export const CMD = {
   openPipeline: "epicLens.openPipeline",
   cyclePipelineProvider: "epicLens.cyclePipelineProvider",
   cyclePipelineScope: "epicLens.cyclePipelineScope",
+  cancelPipeline: "epicLens.cancelPipeline",
   dismissPipeline: "epicLens.dismissPipeline",
   clearDismissedPipelines: "epicLens.clearDismissedPipelines",
 } as const;

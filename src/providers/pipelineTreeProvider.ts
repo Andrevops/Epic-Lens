@@ -226,9 +226,9 @@ export class PipelineTreeProvider
           ? projectPipelines // no success at all — show everything
           : projectPipelines.slice(0, firstSuccessIdx); // only newer-than-success
 
-      // From those, drop success pipelines and cap at 5
+      // From those, drop success and canceled pipelines, cap at 5
       const active = relevant
-        .filter((p) => p.status !== "success")
+        .filter((p) => p.status !== "success" && p.status !== "canceled")
         .slice(0, 5);
 
       result.push(...active);

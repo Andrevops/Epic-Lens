@@ -232,6 +232,32 @@ export class GitHubClient implements vscode.Disposable {
     return data.jobs ?? [];
   }
 
+  async cancelPipeline(
+    owner: string,
+    repo: string,
+    runId: number,
+    output: vscode.OutputChannel
+  ): Promise<boolean> {
+    const { host, token } = await this._getCredentials();
+    if (!host || !token) return false;
+    const url = `${host}/repos/${owner}/${repo}/actions/runs/${runId}/cancel`;
+    output.appendLine(`  GitHub cancel workflow run: ${url}`);
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+        },
+      });
+      output.appendLine(`  GitHub cancel response: ${response.status}`);
+      return response.ok || response.status === 202;
+    } catch (err) {
+      output.appendLine(`  GitHub cancel error: ${err}`);
+      return false;
+    }
+  }
+
   private _toStandalonePipelineFromRun(
     run: GitHubWorkflowRun,
     repo: GitHubRepo,

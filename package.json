@@ -224,6 +224,12 @@
         "icon": "$(account)"
       },
       {
+        "command": "epicLens.cancelPipeline",
+        "title": "Cancel Pipeline",
+        "category": "Epic Lens",
+        "icon": "$(debug-stop)"
+      },
+      {
         "command": "epicLens.dismissPipeline",
         "title": "Dismiss Pipeline",
         "category": "Epic Lens",
@@ -391,6 +397,11 @@
           "command": "epicLens.openPipeline",
           "when": "view == epicLens.pipelines && viewItem == pipeline",
           "group": "navigation@1"
+        },
+        {
+          "command": "epicLens.cancelPipeline",
+          "when": "view == epicLens.pipelines && viewItem == pipeline",
+          "group": "navigation@2"
         },
         {
           "command": "epicLens.dismissPipeline",

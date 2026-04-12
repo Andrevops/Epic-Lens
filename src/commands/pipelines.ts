@@ -1,11 +1,16 @@
 import * as vscode from "vscode";
 import { CMD, PROVIDER_LABELS, PIPELINE_SCOPE_LABELS } from "../constants";
 import type { PipelineTreeProvider } from "../providers/pipelineTreeProvider";
+import type { GitLabClient } from "../services/gitlabClient";
+import type { GitHubClient } from "../services/githubClient";
 import type { StandalonePipelineData } from "../types";
 
 export function registerPipelineCommands(
   context: vscode.ExtensionContext,
-  pipelineTreeProvider: PipelineTreeProvider
+  pipelineTreeProvider: PipelineTreeProvider,
+  gitlabClient: GitLabClient,
+  githubClient: GitHubClient,
+  output: vscode.OutputChannel
 ): void {
   // Fetch pipelines (with progress notification)
   context.subscriptions.push(
@@ -58,6 +63,53 @@ export function registerPipelineCommands(
       vscode.window.showInformationMessage(
         `Epic Lens: Pipelines showing ${PIPELINE_SCOPE_LABELS[next]}`
       );
+    })
+  );
+
+  // Cancel a running/pending pipeline
+  context.subscriptions.push(
+    vscode.commands.registerCommand(CMD.cancelPipeline, async (arg: unknown) => {
+      const pipeline = resolvePipeline(arg);
+      if (!pipeline) return;
+
+      if (pipeline.status !== "running" && pipeline.status !== "pending") {
+        vscode.window.showWarningMessage(
+          `Pipeline #${pipeline.id} is already ${pipeline.status}`
+        );
+        return;
+      }
+
+      const confirm = await vscode.window.showWarningMessage(
+        `Cancel pipeline #${pipeline.id} on ${pipeline.projectName}?`,
+        { modal: true },
+        "Cancel Pipeline"
+      );
+      if (confirm !== "Cancel Pipeline") return;
+
+      let success = false;
+      if (pipeline.provider === "gitlab") {
+        success = await gitlabClient.cancelPipeline(
+          pipeline.projectId, pipeline.id, output
+        );
+      } else {
+        // GitHub: parse owner/repo from projectPath
+        const [owner, repo] = pipeline.projectPath.split("/");
+        success = await githubClient.cancelPipeline(
+          owner, repo, pipeline.id, output
+        );
+      }
+
+      if (success) {
+        vscode.window.showInformationMessage(
+          `Pipeline #${pipeline.id} cancelled`
+        );
+        // Refresh to pick up the new status
+        pipelineTreeProvider.fetch();
+      } else {
+        vscode.window.showErrorMessage(
+          `Failed to cancel pipeline #${pipeline.id}`
+        );
+      }
     })
   );
 

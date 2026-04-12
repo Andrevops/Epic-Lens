@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext): void {
   registerOpenCommands(context);
   registerCredentialCommands(context, jiraClient);
   registerMrCommands(context, gitlabClient, githubClient, mrTreeProvider);
-  registerPipelineCommands(context, pipelineTreeProvider);
+  registerPipelineCommands(context, pipelineTreeProvider, gitlabClient, githubClient, output);
 
   // Subscriptions
   context.subscriptions.push(
