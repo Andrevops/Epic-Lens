@@ -2,6 +2,16 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.15.0
+
+### Features
+- filter pipeline view to only show actionable pipelines
+- add standalone Pipelines view for CI/CD on default branches
+- add CI/pipeline status per MR with individual job details
+
+### Other
+- fix stale references missing GitHub in scanOnStartup and emoji mismatch
+
 ## 0.14.0
 
 ### Features
