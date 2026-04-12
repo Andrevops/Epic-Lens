@@ -150,8 +150,18 @@ export class PipelineTreeProvider
         (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
       );
 
-      // Keep only non-success pipelines (failed, running, pending, canceled)
-      const active = projectPipelines
+      // Only keep pipelines newer than the most recent success.
+      // If #10 succeeded, failed #8 and #9 are superseded — don't show them.
+      const firstSuccessIdx = projectPipelines.findIndex(
+        (p) => p.status === "success"
+      );
+      const relevant =
+        firstSuccessIdx === -1
+          ? projectPipelines // no success at all — show everything
+          : projectPipelines.slice(0, firstSuccessIdx); // only newer-than-success
+
+      // From those, drop success pipelines and cap at 5
+      const active = relevant
         .filter((p) => p.status !== "success")
         .slice(0, 5);
 
