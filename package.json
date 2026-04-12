@@ -2,7 +2,7 @@
   "name": "epic-lens",
   "displayName": "Epic Lens",
   "description": "Track Jira epics, GitLab MRs, and GitHub PRs in one sidebar — stay in control when AI helps you ship fast",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "publisher": "andrevops-com",
   "license": "MIT",
   "icon": "resources/icons/icon.png",

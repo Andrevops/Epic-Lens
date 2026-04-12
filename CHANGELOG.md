@@ -2,6 +2,14 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.13.0
+
+### Features
+- add CI/pipeline status per MR with individual job details
+
+### Other
+- fix stale references missing GitHub in scanOnStartup and emoji mismatch
+
 ## 0.12.0
 
 ### Features
