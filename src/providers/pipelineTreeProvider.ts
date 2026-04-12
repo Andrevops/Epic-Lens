@@ -54,9 +54,10 @@ export class PipelineTreeProvider
     this._dismissedIds = new Set(saved);
   }
 
-  dismiss(pipeline: StandalonePipelineData): void {
+  async dismiss(pipeline: StandalonePipelineData): Promise<void> {
     this._dismissedIds.add(pipeline.webUrl);
-    this._context?.workspaceState.update(
+    this._output.appendLine(`  Pipeline dismissed: ${pipeline.webUrl} (${this._dismissedIds.size} total)`);
+    await this._context?.workspaceState.update(
       DISMISSED_KEY,
       [...this._dismissedIds]
     );
@@ -64,9 +65,9 @@ export class PipelineTreeProvider
     this._onDidChangeTreeData.fire();
   }
 
-  clearDismissed(): void {
+  async clearDismissed(): Promise<void> {
     this._dismissedIds.clear();
-    this._context?.workspaceState.update(DISMISSED_KEY, []);
+    await this._context?.workspaceState.update(DISMISSED_KEY, []);
     this._updateContext();
     this._onDidChangeTreeData.fire();
   }
@@ -149,7 +150,8 @@ export class PipelineTreeProvider
       }
     }
     if (pruned) {
-      this._context?.workspaceState.update(DISMISSED_KEY, [...this._dismissedIds]);
+      this._output.appendLine(`  Pruned stale dismissed entries, ${this._dismissedIds.size} remaining`);
+      await this._context?.workspaceState.update(DISMISSED_KEY, [...this._dismissedIds]);
     }
 
     this._updateContext();
@@ -183,6 +185,14 @@ export class PipelineTreeProvider
   }
 
   private _filteredPipelines(): StandalonePipelineData[] {
+    const dismissed = this._allPipelines.filter(
+      (p) => this._dismissedIds.has(p.webUrl)
+    );
+    if (dismissed.length > 0) {
+      this._output.appendLine(
+        `  Pipelines hidden (dismissed): ${dismissed.length} — ${dismissed.map((p) => `#${p.id}`).join(", ")}`
+      );
+    }
     let pipelines = this._allPipelines.filter(
       (p) => !this._dismissedIds.has(p.webUrl)
     );
