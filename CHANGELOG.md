@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.15.4
+
+### Bug Fixes
+- fetch pipelines from all member projects without branch/user filter
+
 ## 0.15.3
 
 ### Bug Fixes
