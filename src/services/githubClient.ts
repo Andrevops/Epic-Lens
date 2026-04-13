@@ -290,6 +290,7 @@ export class GitHubClient implements vscode.Disposable {
       additions: f.additions,
       deletions: f.deletions,
       diffUrl: `${prWebUrl}/files#diff-${f.sha}`,
+      patch: f.patch,
     }));
   }
 

@@ -4,6 +4,26 @@ import type { MergeRequestData, MrStatusCategory, MrProviderFilter, MrScopeFilte
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
 
+/* ── Diff content provider ── */
+
+export const MR_DIFF_SCHEME = "epic-lens-diff";
+
+export class MrDiffContentProvider implements vscode.TextDocumentContentProvider {
+  private _patches = new Map<string, string>();
+
+  set(key: string, content: string): void {
+    this._patches.set(key, content);
+  }
+
+  clear(): void {
+    this._patches.clear();
+  }
+
+  provideTextDocumentContent(uri: vscode.Uri): string {
+    return this._patches.get(uri.path) ?? "";
+  }
+}
+
 /* ── Tree node types ── */
 
 interface ProjectNode {
@@ -34,6 +54,7 @@ export class MrTreeProvider
 {
   private _allMrs: MergeRequestData[] = [];
   private _fileChangeCache = new Map<string, FileChangeData[]>();
+  private _diffContentProvider: MrDiffContentProvider;
   private _previousStatuses = new Map<string, MrStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
   private _scopeFilter: MrScopeFilter = "all";
@@ -45,8 +66,11 @@ export class MrTreeProvider
   constructor(
     private _gitlabClient: GitLabClient,
     private _githubClient: GitHubClient,
-    private _output: vscode.OutputChannel
-  ) {}
+    private _output: vscode.OutputChannel,
+    diffContentProvider: MrDiffContentProvider
+  ) {
+    this._diffContentProvider = diffContentProvider;
+  }
 
   get mrs(): MergeRequestData[] {
     return this._filteredMrs();
@@ -98,6 +122,7 @@ export class MrTreeProvider
     this._notifyChanges(newMrs);
     this._allMrs = newMrs;
     this._fileChangeCache.clear();
+    this._diffContentProvider.clear();
     this._updateContext();
     this._onDidChangeTreeData.fire();
     return this._filteredMrs().length;
@@ -461,6 +486,13 @@ export class MrTreeProvider
     }
 
     this._fileChangeCache.set(cacheKey, files);
+
+    for (const file of files) {
+      if (file.patch) {
+        this._diffContentProvider.set(file.diffUrl + "#" + file.filename + ".diff", file.patch);
+      }
+    }
+
     return files.map((file) => ({ kind: "fileChange" as const, file }));
   }
 
@@ -482,11 +514,24 @@ export class MrTreeProvider
     item.tooltip = `${file.filename}\n${file.status} (+${file.additions}, -${file.deletions})`;
     item.contextValue = "fileChange";
 
-    item.command = {
-      command: "vscode.open",
-      title: "Open Diff in Browser",
-      arguments: [vscode.Uri.parse(file.diffUrl)],
-    };
+    const contentKey = file.diffUrl + "#" + file.filename;
+    if (file.patch) {
+      const diffUri = vscode.Uri.from({
+        scheme: MR_DIFF_SCHEME,
+        path: contentKey + ".diff",
+      });
+      item.command = {
+        command: "vscode.open",
+        title: "Show Diff",
+        arguments: [diffUri],
+      };
+    } else {
+      item.command = {
+        command: "vscode.open",
+        title: "Open Diff in Browser",
+        arguments: [vscode.Uri.parse(file.diffUrl)],
+      };
+    }
 
     return item;
   }

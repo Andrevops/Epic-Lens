@@ -159,6 +159,8 @@ export interface FileChangeData {
   deletions: number;
   /** URL to open the diff for this file in the browser */
   diffUrl: string;
+  /** Unified diff / patch content */
+  patch?: string;
 }
 
 /** Raw GitLab MR diff item (from /changes endpoint) */

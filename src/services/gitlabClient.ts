@@ -318,6 +318,7 @@ export class GitLabClient implements vscode.Disposable {
         additions,
         deletions,
         diffUrl: `${mrWebUrl}/diffs`,
+        patch: d.diff,
       };
     });
   }

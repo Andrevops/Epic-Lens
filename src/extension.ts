@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import { VIEW_EPICS, VIEW_MRS, VIEW_PIPELINES, CONFIG, CTX } from "./constants";
 import { EpicManager } from "./services/epicManager";
 import { EpicTreeProvider } from "./providers/epicTreeProvider";
-import { MrTreeProvider } from "./providers/mrTreeProvider";
+import { MrTreeProvider, MrDiffContentProvider, MR_DIFF_SCHEME } from "./providers/mrTreeProvider";
 import { PipelineTreeProvider } from "./providers/pipelineTreeProvider";
 import { DashboardPanel } from "./views/dashboardPanel";
 import { registerScanCommands } from "./commands/scan";
@@ -32,8 +32,14 @@ export function activate(context: vscode.ExtensionContext): void {
     showCollapseAll: true,
   });
 
+  // MR diff content provider (virtual documents for inline diff preview)
+  const mrDiffProvider = new MrDiffContentProvider();
+  context.subscriptions.push(
+    vscode.workspace.registerTextDocumentContentProvider(MR_DIFF_SCHEME, mrDiffProvider)
+  );
+
   // GitLab MR TreeView
-  const mrTreeProvider = new MrTreeProvider(gitlabClient, githubClient, output);
+  const mrTreeProvider = new MrTreeProvider(gitlabClient, githubClient, output, mrDiffProvider);
   treeProvider.setMrTreeProvider(mrTreeProvider);
   const mrTreeView = vscode.window.createTreeView(VIEW_MRS, {
     treeDataProvider: mrTreeProvider,
