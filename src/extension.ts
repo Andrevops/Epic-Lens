@@ -37,6 +37,7 @@ export function activate(context: vscode.ExtensionContext): void {
   treeProvider.setMrTreeProvider(mrTreeProvider);
   const mrTreeView = vscode.window.createTreeView(VIEW_MRS, {
     treeDataProvider: mrTreeProvider,
+    showCollapseAll: true,
   });
 
   // Pipeline TreeView

@@ -20,6 +20,9 @@ import type {
   MrStatusCategory,
   PipelineJobData,
   PipelineDetails,
+  FileChangeData,
+  FileChangeStatus,
+  GitHubPRFile,
 } from "../types";
 
 export class GitHubClient implements vscode.Disposable {
@@ -256,6 +259,38 @@ export class GitHubClient implements vscode.Disposable {
       output.appendLine(`  GitHub cancel error: ${err}`);
       return false;
     }
+  }
+
+  async fetchPRFiles(
+    owner: string,
+    repo: string,
+    prNumber: number,
+    prWebUrl: string,
+    output: vscode.OutputChannel
+  ): Promise<FileChangeData[]> {
+    const { host, token } = await this._getCredentials();
+    if (!host || !token) return [];
+
+    const url = `${host}/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=100`;
+    const response = await this._fetch(url, token, output);
+    if (!response) return [];
+
+    const files = (await response.json()) as GitHubPRFile[];
+    const statusMap: Record<string, FileChangeStatus> = {
+      added: "added",
+      modified: "modified",
+      removed: "deleted",
+      renamed: "renamed",
+    };
+
+    return files.map((f) => ({
+      provider: "github" as const,
+      filename: f.filename,
+      status: statusMap[f.status] ?? "modified",
+      additions: f.additions,
+      deletions: f.deletions,
+      diffUrl: `${prWebUrl}/files#diff-${f.sha}`,
+    }));
   }
 
   private _toStandalonePipelineFromRun(

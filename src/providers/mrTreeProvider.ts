@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import { CMD, CTX, CONFIG, MR_STATUS_EMOJI, MR_STATUS_LABELS, PROVIDER_LABELS } from "../constants";
-import type { MergeRequestData, MrStatusCategory, MrProviderFilter, MrScopeFilter } from "../types";
+import type { MergeRequestData, MrStatusCategory, MrProviderFilter, MrScopeFilter, FileChangeData, FileChangeStatus } from "../types";
 import type { GitLabClient } from "../services/gitlabClient";
 import type { GitHubClient } from "../services/githubClient";
 
@@ -19,7 +19,12 @@ interface MrNode {
   mr: MergeRequestData;
 }
 
-type MrTreeNode = ProjectNode | MrNode;
+interface FileChangeNode {
+  kind: "fileChange";
+  file: FileChangeData;
+}
+
+type MrTreeNode = ProjectNode | MrNode | FileChangeNode;
 
 const PROVIDER_CYCLE: MrProviderFilter[] = ["both", "gitlab", "github"];
 const SCOPE_CYCLE: MrScopeFilter[] = ["authored", "reviewing", "all"];
@@ -28,6 +33,7 @@ export class MrTreeProvider
   implements vscode.TreeDataProvider<MrTreeNode>
 {
   private _allMrs: MergeRequestData[] = [];
+  private _fileChangeCache = new Map<string, FileChangeData[]>();
   private _previousStatuses = new Map<string, MrStatusCategory>();
   private _providerFilter: MrProviderFilter = "both";
   private _scopeFilter: MrScopeFilter = "all";
@@ -91,6 +97,7 @@ export class MrTreeProvider
     const newMrs = [...gitlabMrs, ...githubPrs];
     this._notifyChanges(newMrs);
     this._allMrs = newMrs;
+    this._fileChangeCache.clear();
     this._updateContext();
     this._onDidChangeTreeData.fire();
     return this._filteredMrs().length;
@@ -102,14 +109,20 @@ export class MrTreeProvider
         return this._projectItem(node);
       case "mr":
         return this._mrItem(node);
+      case "fileChange":
+        return this._fileChangeItem(node);
     }
   }
 
-  getChildren(node?: MrTreeNode): MrTreeNode[] {
+  async getChildren(node?: MrTreeNode): Promise<MrTreeNode[]> {
     if (!node) return this._getRootNodes();
 
     if (node.kind === "project") {
       return node.mrs.map((mr) => ({ kind: "mr" as const, mr }));
+    }
+
+    if (node.kind === "mr") {
+      return this._getFileChanges(node.mr);
     }
 
     return [];
@@ -242,7 +255,7 @@ export class MrTreeProvider
     const label = `${emoji} ${prefix}${mr.iid} ${mr.title}${reviewTag}${staleTag}`;
     const item = new vscode.TreeItem(
       label,
-      vscode.TreeItemCollapsibleState.None
+      vscode.TreeItemCollapsibleState.Collapsed
     );
 
     const ageDays = Math.floor(
@@ -421,6 +434,87 @@ export class MrTreeProvider
     md.appendMarkdown(`[Open in ${providerName}](${mr.webUrl})`);
 
     return md;
+  }
+
+  private async _getFileChanges(mr: MergeRequestData): Promise<FileChangeNode[]> {
+    const cacheKey = `${mr.provider}:${mr.webUrl}`;
+    const cached = this._fileChangeCache.get(cacheKey);
+    if (cached) {
+      return cached.map((file) => ({ kind: "fileChange" as const, file }));
+    }
+
+    let files: FileChangeData[];
+    try {
+      if (mr.provider === "gitlab") {
+        files = await this._gitlabClient.fetchMRChanges(
+          mr.projectId, mr.iid, mr.webUrl, this._output
+        );
+      } else {
+        const [owner, repo] = mr.projectPath.split("/");
+        files = await this._githubClient.fetchPRFiles(
+          owner, repo, mr.iid, mr.webUrl, this._output
+        );
+      }
+    } catch (err) {
+      this._output.appendLine(`  Failed to fetch file changes: ${err}`);
+      files = [];
+    }
+
+    this._fileChangeCache.set(cacheKey, files);
+    return files.map((file) => ({ kind: "fileChange" as const, file }));
+  }
+
+  private _fileChangeItem(node: FileChangeNode): vscode.TreeItem {
+    const { file } = node;
+    const basename = file.filename.split("/").pop() ?? file.filename;
+    const dir = file.filename.includes("/")
+      ? file.filename.substring(0, file.filename.lastIndexOf("/"))
+      : "";
+
+    const item = new vscode.TreeItem(
+      basename,
+      vscode.TreeItemCollapsibleState.None
+    );
+
+    const stats = `+${file.additions} −${file.deletions}`;
+    item.description = dir ? `${dir}  ${stats}` : stats;
+    item.iconPath = this._fileChangeIcon(file.status);
+    item.tooltip = `${file.filename}\n${file.status} (+${file.additions}, -${file.deletions})`;
+    item.contextValue = "fileChange";
+
+    item.command = {
+      command: "vscode.open",
+      title: "Open Diff in Browser",
+      arguments: [vscode.Uri.parse(file.diffUrl)],
+    };
+
+    return item;
+  }
+
+  private _fileChangeIcon(status: FileChangeStatus): vscode.ThemeIcon {
+    switch (status) {
+      case "added":
+        return new vscode.ThemeIcon(
+          "diff-added",
+          new vscode.ThemeColor("gitDecoration.addedResourceForeground")
+        );
+      case "deleted":
+        return new vscode.ThemeIcon(
+          "diff-removed",
+          new vscode.ThemeColor("gitDecoration.deletedResourceForeground")
+        );
+      case "renamed":
+        return new vscode.ThemeIcon(
+          "diff-renamed",
+          new vscode.ThemeColor("gitDecoration.renamedResourceForeground")
+        );
+      case "modified":
+      default:
+        return new vscode.ThemeIcon(
+          "diff-modified",
+          new vscode.ThemeColor("gitDecoration.modifiedResourceForeground")
+        );
+    }
   }
 }
 

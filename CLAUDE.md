@@ -10,7 +10,7 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 - `src/services/githubClient.ts` — GitHub REST API client (PR search, details, reviews, workflow runs, 3-tier token resolution)
 - `src/services/epicManager.ts` — Core state: epics, orphan issues, filters, config watchers
 - `src/providers/epicTreeProvider.ts` — TreeDataProvider for the sidebar (epics + orphans)
-- `src/providers/mrTreeProvider.ts` — TreeDataProvider for GitLab MRs + GitHub PRs (grouped by project, provider cycling)
+- `src/providers/mrTreeProvider.ts` — TreeDataProvider for GitLab MRs + GitHub PRs (3-level: project > MR > changed files, grouped by project, provider cycling)
 - `src/providers/pipelineTreeProvider.ts` — TreeDataProvider for standalone CI/CD pipelines (3-level: project > pipeline > job)
 - `src/providers/filterProvider.ts` — QuickPick UI for status/type filters
 - `src/commands/` — Command registrations (scan, filter, open, credentials, gitlab, pipelines)
@@ -39,6 +39,9 @@ A VS Code extension that gives developers visibility over their work when AI-ass
 8. Scope cycling button: Authored → Reviewing → All (reviewer MRs fetched via GitLab `reviewer_id` / GitHub `review-requested`)
 9. Stale MR detection compares `created_at` against `staleMRDays` threshold; stale MRs show ⏰ + age
 10. Status change detection diffs previous vs current MR statuses and fires toast notifications with "Open" action
+11. Expanding an MR node lazily fetches changed files from GitLab `/changes` or GitHub `/pulls/:number/files` API
+12. File change nodes show filename, directory, change type (added/modified/deleted/renamed), and +/- counts
+13. Clicking a file change opens its diff in the browser; results cached per MR, cleared on refresh
 
 ### Standalone Pipelines
 1. `PipelineTreeProvider.fetch()` calls both `GitLabClient.fetchMyPipelines()` and `GitHubClient.fetchMyPipelines()` in parallel

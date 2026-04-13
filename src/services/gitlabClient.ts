@@ -13,6 +13,9 @@ import type {
   PipelineStatusCategory,
   PipelineJobData,
   PipelineDetails,
+  FileChangeData,
+  FileChangeStatus,
+  GitLabDiffItem,
 } from "../types";
 
 export class GitLabClient implements vscode.Disposable {
@@ -280,6 +283,43 @@ export class GitLabClient implements vscode.Disposable {
       output.appendLine(`  GitLab cancel error: ${err}`);
       return false;
     }
+  }
+
+  async fetchMRChanges(
+    projectId: number,
+    mrIid: number,
+    mrWebUrl: string,
+    output: vscode.OutputChannel
+  ): Promise<FileChangeData[]> {
+    const { host, token } = await this._getCredentials();
+    if (!host || !token) return [];
+
+    const url = `${host}/api/v4/projects/${projectId}/merge_requests/${mrIid}/changes?per_page=100&access_raw_diffs=true`;
+    const response = await this._fetch(url, token, output);
+    if (!response) return [];
+
+    const body = (await response.json()) as { changes?: GitLabDiffItem[] };
+    const diffs = body.changes ?? [];
+
+    return diffs.map((d) => {
+      let status: FileChangeStatus = "modified";
+      if (d.new_file) status = "added";
+      else if (d.deleted_file) status = "deleted";
+      else if (d.renamed_file) status = "renamed";
+
+      const lines = d.diff.split("\n");
+      const additions = lines.filter((l) => l.startsWith("+") && !l.startsWith("+++")).length;
+      const deletions = lines.filter((l) => l.startsWith("-") && !l.startsWith("---")).length;
+
+      return {
+        provider: "gitlab" as const,
+        filename: d.new_path,
+        status,
+        additions,
+        deletions,
+        diffUrl: `${mrWebUrl}/diffs`,
+      };
+    });
   }
 
   private async _fetchApprovals(

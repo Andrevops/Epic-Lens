@@ -146,6 +146,45 @@ export interface MergeRequestData {
   status: MrStatusCategory;
 }
 
+/* ── MR File Change types ── */
+
+export type FileChangeStatus = "added" | "modified" | "deleted" | "renamed";
+
+/** A single file changed in a merge request / pull request */
+export interface FileChangeData {
+  provider: MrProvider;
+  filename: string;
+  status: FileChangeStatus;
+  additions: number;
+  deletions: number;
+  /** URL to open the diff for this file in the browser */
+  diffUrl: string;
+}
+
+/** Raw GitLab MR diff item (from /changes endpoint) */
+export interface GitLabDiffItem {
+  old_path: string;
+  new_path: string;
+  new_file: boolean;
+  renamed_file: boolean;
+  deleted_file: boolean;
+  diff: string;
+}
+
+/** Raw GitHub PR file item (from /pulls/:number/files endpoint) */
+export interface GitHubPRFile {
+  sha: string;
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  blob_url: string;
+  raw_url: string;
+  contents_url: string;
+  patch?: string;
+}
+
 /* ── Standalone Pipeline types ── */
 
 export type PipelineStatusCategory =
