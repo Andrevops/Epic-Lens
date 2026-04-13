@@ -2,6 +2,11 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.22.1
+
+### Bug Fixes
+- show MR file changes as inline diff preview instead of opening browser
+
 ## 0.22.0
 
 ### Features
