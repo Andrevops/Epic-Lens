@@ -2,6 +2,14 @@
 
 All notable changes to Epic Lens are documented here. Generated from conventional commits.
 
+## 0.22.0
+
+### Features
+- show MR changed files as expandable tree children
+
+### Other
+- remove dismiss references, add pipelineScope setting and loading animations
+
 ## 0.21.2
 
 ### Bug Fixes
